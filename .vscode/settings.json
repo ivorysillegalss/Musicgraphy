@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^mkdir -p src/lib/utils src/components/ui$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^mkdir -p docs/supabase$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      LOCAL_DB_PATH: /app/data/dream.db
+      NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL: local@localhost
+      NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID: local-user
+      DISCOVERY_ADMIN_EMAILS: local@localhost
+      MUSIC_APP_NAME: personal-music-geography
+      MUSIC_APP_VERSION: 0.1.0
+      MUSIC_APP_CONTACT: local-dev
+      LASTFM_API_KEY: ${LASTFM_API_KEY:-}
+      LASTFM_USERNAME: ${LASTFM_USERNAME:-}
+      MUSICBRAINZ_TOKEN: ${MUSICBRAINZ_TOKEN:-}
+      MUSICBRAINZ_TOKENS: ${MUSICBRAINZ_TOKENS:-}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

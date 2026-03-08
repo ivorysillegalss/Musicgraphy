@@ -1,65 +1,712 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Library } from "lucide-react";
+
+import { AppNavbar } from "@/components/ui/app-navbar";
+import { AuthModal } from "@/components/ui/auth-modal";
+import { BottomControls } from "@/components/ui/bottom-controls";
+import { GuideModal } from "@/components/ui/guide-modal";
+import { LibraryDrawer } from "@/components/ui/library-drawer";
+import { MbTokenModal } from "@/components/ui/mb-token-modal";
+import { WorldMap } from "@/components/world-map";
+import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
+import {
+  getLocalSessionClient,
+  isLocalBackendConfigured,
+  type LocalSession,
+} from "@/lib/local-session-browser";
+import type { UserRecord } from "@/lib/types";
+
+const FAVORITES_STORAGE_KEY = "pmgt_favorites_v1";
+const LOCAL_RECORDS_STORAGE_KEY = "pmgt_local_records_v1";
+const MIN_RELEASE_YEAR = 1960;
+const MAX_RELEASE_YEAR = new Date().getFullYear();
+
+function getYear(record: UserRecord): number {
+  return record.releaseYear || new Date(record.listenAt).getFullYear();
+}
+
+function favoriteKey(album: Pick<DiscoveryAlbum, "id" | "albumTitle" | "artistName">) {
+  return `${(album.id || "").toLowerCase()}::${album.albumTitle.toLowerCase()}::${album.artistName.toLowerCase()}`;
+}
+
+function normalizeCompareValue(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function albumArtistKey(albumTitle: string, artistName: string) {
+  return `${normalizeCompareValue(albumTitle)}::${normalizeCompareValue(artistName)}`;
+}
+
+function createLocalRecordFromAlbum(album: DiscoveryAlbum): UserRecord {
+  return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    albumMbid: null,
+    albumTitle: album.albumTitle,
+    releaseDate: album.releaseYear ? `${album.releaseYear}-01-01` : null,
+    releaseYear: album.releaseYear,
+    listenAt: new Date().toISOString(),
+    score: 7,
+    personalTags: ["local-test", "map-mark"],
+    artistGeo: {
+      artistId: `local-${album.artistName.toLowerCase().replaceAll(" ", "-")}`,
+      artistName: album.artistName,
+      countryCode: album.countryCode,
+      countryName: album.countryName,
+      cityName: album.cityName,
+      coordinates: {
+        lng: album.coordinates.lng,
+        lat: album.coordinates.lat,
+      },
+    },
+  };
+}
 
 export default function Home() {
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [pendingMapSelection, setPendingMapSelection] = useState<
+    | { type: "discovery"; album: DiscoveryAlbum }
+    | { type: "user"; record: UserRecord }
+    | null
+  >(null);
+
+  const [session, setSession] = useState<LocalSession | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [isUserActionLoading, setIsUserActionLoading] = useState(false);
+
+  const [favorites, setFavorites] = useState<DiscoveryAlbum[]>([]);
+  const [records, setRecords] = useState<UserRecord[]>([]);
+  const [timelineRange, setTimelineRange] = useState({
+    min: MIN_RELEASE_YEAR,
+    max: MAX_RELEASE_YEAR,
+  });
+  const [isMbTokenOpen, setIsMbTokenOpen] = useState(false);
+  const [mbTokensInput, setMbTokensInput] = useState("");
+  const [isSavingMbTokens, setIsSavingMbTokens] = useState(false);
+  const [mbTokenStatus, setMbTokenStatus] = useState<{
+    text: string;
+    tone: "success" | "error";
+  } | null>(null);
+  const markHeardInFlightRef = useRef<Set<string>>(new Set());
+
+  const configured = isLocalBackendConfigured();
+  const localTestMode = !configured;
+
+  useEffect(() => {
+    if (!configured) {
+      return;
+    }
+
+    const client = getLocalSessionClient();
+    void client.auth.getSession().then(({ data }) => {
+      setSession(data.session ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [configured]);
+
+  useEffect(() => {
+    if (!configured) {
+      setFavorites([]);
+      return;
+    }
+    if (!session) {
+      setFavorites([]);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/favorites", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json();
+        if (Array.isArray(data.favorites)) {
+          setFavorites(data.favorites);
+        }
+      } catch (error) {
+        console.error("Failed to fetch favorites", error);
+      }
+    })();
+  }, [configured, session]);
+
+  useEffect(() => {
+    if (!configured || !session) {
+      return;
+    }
+
+    // One-time compatibility import for legacy localStorage favorites.
+    void (async () => {
+      try {
+        const raw = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+
+        const parsed = JSON.parse(raw) as DiscoveryAlbum[];
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          window.localStorage.removeItem(FAVORITES_STORAGE_KEY);
+          return;
+        }
+
+        const existing = new Set(favorites.map(favoriteKey));
+        const toImport = parsed.filter((item) => !existing.has(favoriteKey(item)));
+        if (toImport.length === 0) {
+          window.localStorage.removeItem(FAVORITES_STORAGE_KEY);
+          return;
+        }
+
+        await fetch("/api/favorites", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ items: toImport }),
+        });
+
+        window.localStorage.removeItem(FAVORITES_STORAGE_KEY);
+
+        const refresh = await fetch("/api/favorites", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await refresh.json();
+        if (Array.isArray(data.favorites)) {
+          setFavorites(data.favorites);
+        }
+      } catch (error) {
+        console.error("Failed to import legacy favorites", error);
+      }
+    })();
+  }, [configured, favorites, session]);
+
+  useEffect(() => {
+    if (configured) {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(LOCAL_RECORDS_STORAGE_KEY);
+      if (raw) {
+        setRecords(JSON.parse(raw));
+      }
+    } catch {
+      setRecords([]);
+    }
+  }, [configured]);
+
+  useEffect(() => {
+    if (!configured) {
+      window.localStorage.setItem(LOCAL_RECORDS_STORAGE_KEY, JSON.stringify(records));
+    }
+  }, [configured, records]);
+
+  useEffect(() => {
+    if (!configured) {
+      setRecords([]);
+      return;
+    }
+    if (!session) {
+      setRecords([]);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/records", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json();
+        if (data.records) {
+          setRecords(data.records);
+        }
+      } catch (error) {
+        console.error("Failed to fetch records", error);
+      }
+    })();
+  }, [configured, session]);
+
+  async function signOut() {
+    if (!configured) {
+      return;
+    }
+    await getLocalSessionClient().auth.signOut();
+    setSession(null);
+  }
+
+  async function signUpWithEmailPassword(email: string, pass: string) {
+    setIsUserActionLoading(true);
+    setAuthError(null);
+    setAuthMessage(null);
+
+    if (!configured) {
+      setAuthError("本地后端未启用，当前无法注册。");
+      setIsUserActionLoading(false);
+      return;
+    }
+
+    try {
+      const client = getLocalSessionClient();
+      const { error } = await client.auth.signUp({ email, password: pass });
+      if (error) {
+        throw error;
+      }
+      setAuthMessage("注册成功，现在可以登录并在地图上标记已听专辑。");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "注册失败");
+    } finally {
+      setIsUserActionLoading(false);
+    }
+  }
+
+  async function signInWithEmailPassword(email: string, pass: string) {
+    setIsUserActionLoading(true);
+    setAuthError(null);
+    setAuthMessage(null);
+
+    if (!configured) {
+      setAuthError("本地后端未启用，当前无法登录。");
+      setIsUserActionLoading(false);
+      return;
+    }
+
+    try {
+      const client = getLocalSessionClient();
+      const { error } = await client.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
+      if (error) {
+        throw error;
+      }
+      setAuthMessage("登录成功，现在可以在地图上直接标记已听专辑。");
+      setIsAuthOpen(false);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "登录失败");
+    } finally {
+      setIsUserActionLoading(false);
+    }
+  }
+
+  function openMbTokenModal() {
+    if (!configured) {
+      toast.error("本地后端未启用，无法保存 MusicBrainz token。");
+      return;
+    }
+    if (!session) {
+      setIsAuthOpen(true);
+      toast.info("请先登录再保存 MusicBrainz token。");
+      return;
+    }
+    setMbTokenStatus(null);
+    setIsMbTokenOpen(true);
+  }
+
+  async function saveMbTokens() {
+    if (!configured) {
+      toast.error("本地后端未启用，无法保存 MusicBrainz token。");
+      return;
+    }
+    if (!session) {
+      setIsAuthOpen(true);
+      toast.info("请先登录再保存 MusicBrainz token。");
+      return;
+    }
+    if (!mbTokensInput.trim()) {
+      setMbTokenStatus({ text: "请至少填写一个 token。", tone: "error" });
+      return;
+    }
+
+    setIsSavingMbTokens(true);
+    setMbTokenStatus(null);
+
+    try {
+      const res = await fetch("/api/user/mb-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ tokens: mbTokensInput }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "保存失败");
+      }
+
+      setMbTokenStatus({ text: data?.message || "已保存。", tone: "success" });
+      toast.success(data?.message || "已保存 MusicBrainz token");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "保存失败";
+      setMbTokenStatus({ text: message, tone: "error" });
+      toast.error(message);
+    } finally {
+      setIsSavingMbTokens(false);
+    }
+  }
+
+  async function markAlbumHeard(album: DiscoveryAlbum) {
+    const targetKey = albumArtistKey(album.albumTitle, album.artistName);
+    if (markHeardInFlightRef.current.has(targetKey)) {
+      return;
+    }
+
+    markHeardInFlightRef.current.add(targetKey);
+
+    if (!configured) {
+      const existing = records.find(
+        (r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) === targetKey
+      );
+
+      if (existing) {
+        setRecords((prev) => prev.filter((r) => r.id !== existing.id));
+        toast.info("Removed from history");
+      } else {
+        setRecords((prev) => [createLocalRecordFromAlbum(album), ...prev]);
+        toast.success("Marked as heard");
+      }
+      markHeardInFlightRef.current.delete(targetKey);
+      return;
+    }
+
+    if (!session) {
+      setIsAuthOpen(true);
+      markHeardInFlightRef.current.delete(targetKey);
+      return;
+    }
+
+    const loadId = toast.loading("Processing...");
+
+    try {
+      const existing = records.find(
+        (r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) === targetKey
+      );
+
+      if (existing) {
+        const res = await fetch("/api/records/mark-heard", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            albumTitle: album.albumTitle,
+            artistName: album.artistName,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Unmark failed");
+        }
+
+        setRecords((prev) =>
+          prev.filter(
+            (r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) !== targetKey
+          )
+        );
+
+        toast.dismiss(loadId);
+        toast.info("Removed from history");
+      } else {
+        const res = await fetch("/api/records/mark-heard", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            albumTitle: album.albumTitle,
+            artistName: album.artistName,
+            releaseYear: album.releaseYear,
+            countryCode: album.countryCode,
+            countryName: album.countryName,
+            cityName: album.cityName,
+            coordinates: album.coordinates,
+          }),
+        });
+
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.error?.message || payload?.message || "Mark failed");
+        }
+
+        const created = payload as UserRecord;
+        setRecords((prev) => {
+          const next = prev.filter(
+            (r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) !== targetKey
+          );
+          return [created, ...next];
+        });
+
+        toast.dismiss(loadId);
+        toast.success("Marked as heard");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(loadId);
+      toast.error("Operation failed");
+    } finally {
+      markHeardInFlightRef.current.delete(targetKey);
+    }
+  }
+
+  async function unmarkRecord(record: UserRecord) {
+    if (!configured) {
+      setRecords((prev) => prev.filter((r) => r.id !== record.id));
+      toast.info("Removed from history");
+      return;
+    }
+
+    if (!session) {
+      return;
+    }
+
+    const loadId = toast.loading("Removing...");
+
+    try {
+      const res = await fetch("/api/records/mark-heard", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          albumTitle: record.albumTitle,
+          artistName: record.artistGeo.artistName,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Delete failed");
+      }
+
+      const targetKey = albumArtistKey(record.albumTitle, record.artistGeo.artistName);
+      setRecords((prev) =>
+        prev.filter((r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) !== targetKey)
+      );
+
+      toast.dismiss(loadId);
+      toast.info("Removed from history");
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(loadId);
+      toast.error("Failed to remove");
+    }
+  }
+
+  function toggleFavorite(album: DiscoveryAlbum) {
+    if (!configured || !session) {
+      setIsAuthOpen(true);
+      toast.info("请先登录后再收藏。");
+      return;
+    }
+
+    const wasFavorite = favorites.some(
+      (item) =>
+        item.id === album.id ||
+        (item.albumTitle === album.albumTitle && item.artistName === album.artistName)
+    );
+
+    setFavorites((prev) => {
+      if (wasFavorite) {
+        return prev.filter(
+          (item) =>
+            item.id !== album.id &&
+            !(item.albumTitle === album.albumTitle && item.artistName === album.artistName)
+        );
+      }
+      return [album, ...prev];
+    });
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/favorites", {
+          method: wasFavorite ? "DELETE" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            id: album.id,
+            albumTitle: album.albumTitle,
+            artistName: album.artistName,
+            releaseYear: album.releaseYear,
+            countryCode: album.countryCode,
+            countryName: album.countryName,
+            cityName: album.cityName,
+            coordinates: album.coordinates,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to update favorite");
+        }
+
+        if (wasFavorite) {
+          toast.info("Removed from favorites");
+        } else {
+          toast.success("Added to favorites");
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("收藏操作失败，已恢复状态。");
+
+        // Re-sync from backend to avoid local and server drifting apart.
+        try {
+          const refresh = await fetch("/api/favorites", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          const data = await refresh.json();
+          if (Array.isArray(data.favorites)) {
+            setFavorites(data.favorites);
+          }
+        } catch (refreshError) {
+          console.error("Failed to refresh favorites after error", refreshError);
+        }
+      }
+    })();
+  }
+
+  const filteredRecords = useMemo(
+    () =>
+      records.filter((record) => {
+        const year = getYear(record);
+        return year >= timelineRange.min && year <= timelineRange.max;
+      }),
+    [records, timelineRange]
+  );
+
+  const recordYearSummary = useMemo(() => {
+    if (filteredRecords.length === 0) {
+      return "No records";
+    }
+    const years = filteredRecords.map(getYear);
+    return `${Math.min(...years)} - ${Math.max(...years)}`;
+  }, [filteredRecords]);
+
+  const preferredCountries = useMemo(() => {
+    const frequency = new Map<string, number>();
+    for (const record of filteredRecords) {
+      if (record.artistGeo.countryCode) {
+        frequency.set(
+          record.artistGeo.countryCode,
+          (frequency.get(record.artistGeo.countryCode) || 0) + 1
+        );
+      }
+    }
+
+    return Array.from(frequency.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([countryCode]) => countryCode);
+  }, [filteredRecords]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="relative h-screen w-full overflow-hidden bg-black text-zinc-100 font-sans selection:bg-cyan-500/30">
+      <div className="absolute inset-0 z-0">
+        <WorldMap
+          userRecords={filteredRecords}
+          isAuthenticated={localTestMode || Boolean(session)}
+          userId={session?.user.id}
+          favorites={favorites}
+          preferredCountries={preferredCountries}
+          yearRange={timelineRange}
+          externalSelection={pendingMapSelection}
+          onExternalSelectionHandled={() => setPendingMapSelection(null)}
+          onToggleFavorite={toggleFavorite}
+          onMarkHeard={markAlbumHeard}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+
+      <AppNavbar
+        userEmail={session?.user.email}
+        isLocalMode={localTestMode}
+        onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenMbTokens={openMbTokenModal}
+        onSignOut={signOut}
+        onAuthClick={() => setIsAuthOpen(true)}
+      />
+
+      <BottomControls
+        timelineRange={timelineRange}
+        setTimelineRange={setTimelineRange}
+        minYear={MIN_RELEASE_YEAR}
+        maxYear={MAX_RELEASE_YEAR}
+        recordsCount={filteredRecords.length}
+        yearSummary={recordYearSummary}
+      />
+
+      <button
+        onClick={() => setIsLibraryOpen(true)}
+        className="fixed bottom-32 right-6 z-40 flex items-center justify-center h-12 w-12 rounded-full bg-zinc-900/80 backdrop-blur-md border border-white/20 text-white shadow-xl hover:scale-110 hover:bg-zinc-800 transition-all group"
+        title="Open Library"
+      >
+        <Library size={20} className="group-hover:text-purple-400 transition-colors" />
+        {favorites.length > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] font-bold">
+            {favorites.length}
+          </span>
+        )}
+      </button>
+
+      <GuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        isConfigured={configured}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        isLoading={isUserActionLoading}
+        error={authError}
+        message={authMessage}
+        onSignIn={signInWithEmailPassword}
+        onSignUp={signUpWithEmailPassword}
+      />
+
+      <MbTokenModal
+        isOpen={isMbTokenOpen}
+        value={mbTokensInput}
+        onChange={setMbTokensInput}
+        onClose={() => {
+          setIsMbTokenOpen(false);
+          setIsSavingMbTokens(false);
+          setMbTokenStatus(null);
+        }}
+        onSave={saveMbTokens}
+        isSaving={isSavingMbTokens}
+        message={mbTokenStatus}
+      />
+
+      <LibraryDrawer
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        favorites={favorites}
+        records={records}
+        onToggleFavorite={toggleFavorite}
+        onMarkHeard={markAlbumHeard}
+        onUnmark={unmarkRecord}
+        onLocateFavorite={(album) => {
+          setPendingMapSelection({ type: "discovery", album });
+          setIsLibraryOpen(false);
+        }}
+        onLocateRecord={(record) => {
+          setPendingMapSelection({ type: "user", record });
+          setIsLibraryOpen(false);
+        }}
+      />
+    </main>
   );
 }
