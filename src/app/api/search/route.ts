@@ -5,9 +5,14 @@ import { dbAll, dbGet, dbRun } from "@/lib/local-db";
 import { searchReleasesByFields, resolveArtistGeoById } from "@/lib/musicbrainz";
 import { resolveArtistGeoWithCache } from "@/lib/record-ingest";
 import { getCountryCoordinates } from "@/lib/country-centroid";
+import { isUnknownGeoLabel, sanitizeGeoLabel } from "@/lib/geo-label";
 
 const MB_SEARCH_CACHE_TTL_MS = 90_000;
 const MB_RATE_LIMIT_COOLDOWN_MS = 120_000;
+
+type RateLimitLikeError = {
+  code?: string;
+};
 
 function pickFromList(tokens: string[], seed: string): string | null {
   if (!tokens.length) return null;
@@ -127,34 +132,31 @@ function jitterCoordinates(lng: number, lat: number, seed: string) {
   };
 }
 
-function fallbackCoordinatesFromSeed(seed: string) {
-  const hash = hashString(seed);
-  const lng = ((hash % 36000) / 100) - 180;
-  const lat = (((Math.floor(hash / 36000) % 12000) / 100) - 60);
-  return {
-    lng: clampLng(lng),
-    lat: clampLat(lat),
-  };
-}
-
-function clampLng(value: number) {
-  if (value > 180) return 180;
-  if (value < -180) return -180;
-  return value;
-}
-
-function clampLat(value: number) {
-  if (value > 85) return 85;
-  if (value < -85) return -85;
-  return value;
+function normalizeClusterPart(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
 }
 
 async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
+  const cityName = sanitizeGeoLabel(result.cityName);
+  const regionCode = null;
+  const regionName = null;
+  const geoGranularity = cityName ? "city" : "country";
+  const clusterCountry = normalizeClusterPart(result.countryCode) || "xx";
+  const clusterCity = normalizeClusterPart(cityName);
+  const geoClusterKey = clusterCity
+    ? `${clusterCountry}:na:${clusterCity}`
+    : clusterCountry;
+
   await dbRun(
     `insert into discovery_pool (
       id, album_title, artist_name, release_year, country_code, country_name,
-      city_name, lng, lat, enabled, weight, created_at
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'))
+      city_name, region_code, region_name, geo_granularity, geo_cluster_key,
+      lng, lat, enabled, weight, created_at
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'))
     on conflict(id) do update set
       album_title = excluded.album_title,
       artist_name = excluded.artist_name,
@@ -162,6 +164,10 @@ async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
       country_code = excluded.country_code,
       country_name = excluded.country_name,
       city_name = excluded.city_name,
+      region_code = excluded.region_code,
+      region_name = excluded.region_name,
+      geo_granularity = excluded.geo_granularity,
+      geo_cluster_key = excluded.geo_cluster_key,
       lng = excluded.lng,
       lat = excluded.lat,
       enabled = 1,
@@ -173,7 +179,11 @@ async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
       result.releaseYear,
       result.countryCode,
       result.countryName,
-      result.cityName,
+      cityName ?? result.countryName,
+      regionCode,
+      regionName,
+      geoGranularity,
+      geoClusterKey,
       result.coordinates.lng,
       result.coordinates.lat,
     ]
@@ -230,6 +240,29 @@ export async function GET(request: Request) {
   let externalError: string | undefined;
 
   try {
+    const sqlFilters: string[] = ["enabled = 1"];
+    const sqlArgs: Array<string | number> = [];
+
+    const q = query.toLowerCase();
+    const aq = artistQuery.toLowerCase();
+    const lq = albumQuery.toLowerCase();
+
+    if (lq) {
+      sqlFilters.push("lower(album_title) like ?");
+      sqlArgs.push(`%${lq}%`);
+    }
+    if (aq) {
+      sqlFilters.push("lower(artist_name) like ?");
+      sqlArgs.push(`%${aq}%`);
+    }
+    if (!lq && !aq && q) {
+      sqlFilters.push("(lower(album_title) like ? or lower(artist_name) like ?)");
+      sqlArgs.push(`%${q}%`, `%${q}%`);
+    }
+
+    // Keep local search fast by trimming DB payload before JS post-processing.
+    sqlArgs.push(300);
+
     const rows = await dbAll<{
       id: string;
       album_title: string;
@@ -244,26 +277,13 @@ export async function GET(request: Request) {
       `select
         id, album_title, artist_name, release_year, country_code, country_name, city_name, lng, lat
        from discovery_pool
-       where enabled = 1
+       where ${sqlFilters.join(" and ")}
        order by created_at desc
-       limit 5000`
+       limit ?`,
+      sqlArgs
     );
 
-    const q = query.toLowerCase();
-    const aq = artistQuery.toLowerCase();
-    const lq = albumQuery.toLowerCase();
-
-    localPoolMatches = rows
-      .filter((row) => {
-        if (lq && !row.album_title.toLowerCase().includes(lq)) return false;
-        if (aq && !row.artist_name.toLowerCase().includes(aq)) return false;
-        if (!lq && !aq && q) {
-          return (
-            row.album_title.toLowerCase().includes(q) || row.artist_name.toLowerCase().includes(q)
-          );
-        }
-        return true;
-      });
+    localPoolMatches = rows;
 
     results = localPoolMatches
       .slice(0, 10)
@@ -378,7 +398,7 @@ export async function GET(request: Request) {
             try {
               const rawGeo = await Promise.race([
                 resolveArtistGeoById(artist.id, userMbToken),
-                new Promise<any>((_, reject) =>
+                new Promise<never>((_, reject) =>
                   setTimeout(() => reject(new Error("MusicBrainz geo timeout")), 2000)
                 ),
               ]);
@@ -390,7 +410,7 @@ export async function GET(request: Request) {
                 cityName: rawGeo.cityName,
               };
             } catch (e) {
-              if ((e as any)?.code === "RATE_LIMIT") {
+              if ((e as RateLimitLikeError)?.code === "RATE_LIMIT") {
                 mbRateLimited = true;
                 lastMbRateLimitMs = now;
                 externalError = "Third-party rate limit reached. Please retry later.";
@@ -402,31 +422,43 @@ export async function GET(request: Request) {
             }
           }
 
-          // Try to get coordinates
-          let coordinates: { lng: number; lat: number } | null = null;
-          if (geoInfo) {
-            // If we got it from cache, it might not have coordinates directly in the object
-            // We need to calculate them from country code/name
-            coordinates = getCountryCoordinates(geoInfo.countryCode, geoInfo.countryName);
+          const normalizedCountryCode = sanitizeGeoLabel(geoInfo?.countryCode)?.toUpperCase() ?? null;
+          const normalizedCountryName = sanitizeGeoLabel(geoInfo?.countryName);
+          const normalizedCityName = sanitizeGeoLabel(geoInfo?.cityName);
+          const hasResolvableCountry =
+            Boolean(normalizedCountryCode) &&
+            normalizedCountryCode !== "XX" &&
+            !isUnknownGeoLabel(normalizedCountryName);
+
+          if (!hasResolvableCountry) {
+            // Avoid fake placement when we do not know the artist country.
+            externalError = externalError ?? "Some external results were skipped because location data is unavailable.";
+            continue;
           }
 
+          const ensuredCountryCode = normalizedCountryCode as string;
+          const ensuredCountryName = normalizedCountryName ?? ensuredCountryCode;
+
+          // Try to get coordinates
+          let coordinates: { lng: number; lat: number } | null = null;
+          coordinates = getCountryCoordinates(ensuredCountryCode, ensuredCountryName);
+
           if (!coordinates) {
-            // Keep search usable when third-party geo is incomplete.
-            const seed = `${artist.id}-${release.id}-${artist.name}-${release.title}`;
-            coordinates = fallbackCoordinatesFromSeed(seed);
+            externalError = externalError ?? "Some external results were skipped because country coordinates are unavailable.";
+            continue;
           }
 
           if (coordinates) {
-            const seed = `${artist.name}-${release.title}-${geoInfo?.cityName ?? geoInfo?.countryCode ?? ""}`;
+            const seed = `${artist.name}-${release.title}-${normalizedCityName ?? normalizedCountryCode ?? ""}`;
             const jittered = jitterCoordinates(coordinates.lng, coordinates.lat, seed);
             const item: SearchResult = {
               id: `mb-${release.id}`,
               albumTitle: release.title,
               artistName: artist.name,
               releaseYear: release.year ?? new Date().getFullYear(),
-              countryCode: geoInfo?.countryCode || "XX",
-              countryName: geoInfo?.countryName || "Unknown",
-              cityName: geoInfo?.cityName || "Unknown",
+              countryCode: ensuredCountryCode,
+              countryName: ensuredCountryName,
+              cityName: normalizedCityName ?? ensuredCountryName,
               coordinates: {
                 lng: jittered.lng,
                 lat: jittered.lat,

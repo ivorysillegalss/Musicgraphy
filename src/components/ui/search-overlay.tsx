@@ -194,6 +194,11 @@ export function SearchOverlay({
 
   const combinedResults = useMemo<SearchResult[]>(() => {
     const results: SearchResult[] = [];
+    const toKey = (albumTitle: string, artistName: string) =>
+      `${albumTitle.trim().toLowerCase()}::${artistName.trim().toLowerCase()}`;
+    const heardKeySet = new Set(
+      userRecords.map((record) => toKey(record.albumTitle, record.artistGeo.artistName))
+    );
     
     // Add user records first
     filteredUserRecords.forEach((record) =>
@@ -202,11 +207,7 @@ export function SearchOverlay({
     
     // Add discovery albums, but filter out ones that are already in user records
     searchResults.forEach((album) => {
-      const isAlreadyUserRecord = userRecords.some(
-        (record) => 
-          record.albumTitle.toLowerCase() === album.albumTitle.toLowerCase() &&
-          record.artistGeo.artistName.toLowerCase() === album.artistName.toLowerCase()
-      );
+      const isAlreadyUserRecord = heardKeySet.has(toKey(album.albumTitle, album.artistName));
       
       if (!isAlreadyUserRecord) {
         results.push({ type: "discovery", data: album });

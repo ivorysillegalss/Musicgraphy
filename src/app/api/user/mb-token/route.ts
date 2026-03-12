@@ -51,7 +51,8 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json({ message: "Saved", count: sanitized.length });
-  } catch (e: any) {
-    return NextResponse.json({ message: e?.message ?? "Failed" }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

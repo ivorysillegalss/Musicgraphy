@@ -7,6 +7,8 @@ import {
   type ArtistGeoCacheRecord,
 } from "@/lib/artist-geo-cache";
 import { getCountryCoordinates } from "@/lib/country-centroid";
+import { inferRegionFromCountryAndCity } from "@/lib/geo-region";
+import { sanitizeGeoLabel } from "@/lib/geo-label";
 import { dbGet, dbRun } from "@/lib/local-db";
 import { MusicBrainzError, resolveArtistGeoById } from "@/lib/musicbrainz";
 import { mapRowToUserRecord, type UserRecordRow } from "@/lib/record-mapper";
@@ -29,6 +31,26 @@ export async function resolveArtistGeoWithCache(
 ): Promise<ArtistGeoCacheRecord> {
   const cached = await getArtistGeoFromCache(artistId);
   if (cached) {
+    if (!cached.regionCode && cached.countryCode && cached.cityName) {
+      const inferred = inferRegionFromCountryAndCity(cached.countryCode, cached.cityName);
+      if (inferred.regionCode || inferred.regionName) {
+        const enriched: ArtistGeoCacheRecord = {
+          ...cached,
+          regionCode: inferred.regionCode,
+          regionName: inferred.regionName,
+          geoGranularity: cached.cityName ? "city" : "region",
+        };
+        try {
+          await upsertArtistGeoCache(
+            enriched,
+            getCountryCoordinates(enriched.countryCode, enriched.countryName)
+          );
+        } catch {
+          // ignore cache enrichment failure
+        }
+        return enriched;
+      }
+    }
     return cached;
   }
 
@@ -51,17 +73,32 @@ export async function resolveArtistGeoWithCache(
     }
     throw err;
   }
+  const inferredRegion =
+    resolvedArtist.regionCode || resolvedArtist.regionName
+      ? {
+          regionCode: sanitizeGeoLabel(resolvedArtist.regionCode),
+          regionName: sanitizeGeoLabel(resolvedArtist.regionName),
+        }
+      : inferRegionFromCountryAndCity(
+          resolvedArtist.countryCode,
+          sanitizeGeoLabel(resolvedArtist.cityName)
+        );
+
+  const cityName = sanitizeGeoLabel(resolvedArtist.cityName);
+  const regionCode = sanitizeGeoLabel(inferredRegion.regionCode ?? null);
+  const regionName = sanitizeGeoLabel(inferredRegion.regionName ?? null);
+
   const record: ArtistGeoCacheRecord = {
     artistId: resolvedArtist.artistId,
     artistName: resolvedArtist.artistName,
     countryCode: resolvedArtist.countryCode,
     countryName: resolvedArtist.countryName,
-    cityName: resolvedArtist.cityName,
-    regionCode: resolvedArtist.regionCode ?? null,
-    regionName: resolvedArtist.regionName ?? null,
+    cityName,
+    regionCode,
+    regionName,
     geoGranularity:
       resolvedArtist.geoGranularity ??
-      (resolvedArtist.cityName ? "city" : resolvedArtist.regionCode ? "region" : "country"),
+      (cityName ? "city" : regionCode ? "region" : "country"),
   };
 
   const cacheCoordinates = getCountryCoordinates(
@@ -107,7 +144,7 @@ export async function createUserRecord(
       listen_at, score, personal_tags, artist_id, artist_name,
       country_code, country_name, city_name, region_code, region_name, geo_granularity,
       lng, lat, created_at, updated_at
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       id,
       input.userId,

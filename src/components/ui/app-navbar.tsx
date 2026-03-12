@@ -8,6 +8,7 @@ type AppNavbarProps = {
   isLocalMode: boolean;
   onOpenGuide: () => void;
   onOpenMbTokens?: () => void;
+  onOpenManage?: () => void;
   onSignOut: () => void;
   onAuthClick: () => void;
 };
@@ -17,6 +18,7 @@ export function AppNavbar({
   isLocalMode,
   onOpenGuide,
   onOpenMbTokens,
+  onOpenManage,
   onSignOut,
   onAuthClick,
 }: AppNavbarProps) {
@@ -60,6 +62,15 @@ export function AppNavbar({
           >
             <Key size={16} />
             <span>MB Tokens</span>
+          </button>
+        )}
+
+        {userEmail && onOpenManage && (
+          <button
+            onClick={onOpenManage}
+            className="rounded-full bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-lg hover:bg-cyan-500/30 transition-colors border border-cyan-400/30"
+          >
+            Manage Geo
           </button>
         )}
 

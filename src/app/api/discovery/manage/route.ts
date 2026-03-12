@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ApiHttpError, handleApiError } from "@/lib/api-error";
+import { sanitizeGeoLabel } from "@/lib/geo-label";
 import { getLocalAuthUser } from "@/lib/local-auth";
 import { dbAll, dbGet, dbRun } from "@/lib/local-db";
 
@@ -111,24 +112,26 @@ function parseCreatePayload(body: unknown) {
   }
 
   const normalizedCountry = payload.countryCode.trim().toUpperCase();
-  const normalizedCity = payload.cityName?.trim() || payload.countryName.trim();
-  const normalizedRegionCode = payload.regionCode?.trim() || null;
-  const normalizedRegionName = payload.regionName?.trim() || null;
+  const normalizedCity = sanitizeGeoLabel(payload.cityName?.trim() || null);
+  const normalizedRegionCode = sanitizeGeoLabel(payload.regionCode?.trim() || null);
+  const normalizedRegionName = sanitizeGeoLabel(payload.regionName?.trim() || null);
 
   const geoGranularity = payload.geoGranularity ?? (normalizedCity ? "city" : normalizedRegionCode ? "region" : "country");
-  const clusterCity = normalizedCity
-    .toLowerCase()
+  const clusterCity = (geoGranularity === "city" ? normalizedCity : null)
+    ?.toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
-  const clusterRegion = (normalizedRegionCode ?? "")
-    .toLowerCase()
+  const clusterRegion = (geoGranularity === "city" || geoGranularity === "region" ? normalizedRegionCode : null)
+    ?.toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/[^a-z0-9-]/g, "") ?? "";
   const defaultCluster = clusterCity
     ? `${normalizedCountry.toLowerCase()}:${clusterRegion || "na"}:${clusterCity}`
     : clusterRegion
       ? `${normalizedCountry.toLowerCase()}:${clusterRegion}`
       : normalizedCountry.toLowerCase();
+
+  const safeCityName = normalizedCity ?? payload.countryName.trim();
 
   return {
     id: payload.id.trim(),
@@ -137,7 +140,7 @@ function parseCreatePayload(body: unknown) {
     release_year: Math.trunc(payload.releaseYear),
     country_code: normalizedCountry,
     country_name: payload.countryName.trim(),
-    city_name: normalizedCity,
+    city_name: safeCityName,
     region_code: normalizedRegionCode,
     region_name: normalizedRegionName,
     geo_granularity: geoGranularity,
@@ -248,6 +251,21 @@ export async function PATCH(request: Request) {
       throw new ApiHttpError(400, "VALIDATION_ERROR", "id is required.");
     }
 
+    const current = await dbGet<DiscoveryPoolRow>(
+      `select
+        id, album_title, artist_name, release_year, country_code, country_name,
+        city_name, region_code, region_name, geo_granularity, geo_cluster_key,
+        lng, lat, enabled, weight, created_at
+       from discovery_pool
+       where id = ?
+       limit 1`,
+      [body.id.trim()]
+    );
+
+    if (!current) {
+      throw new ApiHttpError(404, "DATABASE_ERROR", "Record not found.");
+    }
+
     const patch: Record<string, unknown> = {};
     if (typeof body.enabled === "boolean") {
       patch.enabled = body.enabled ? 1 : 0;
@@ -261,6 +279,83 @@ export async function PATCH(request: Request) {
     }
     if (typeof body.releaseYear === "number") {
       patch.release_year = Math.trunc(body.releaseYear);
+    }
+    if (typeof body.countryCode === "string") {
+      const countryCode = body.countryCode.trim().toUpperCase();
+      if (!countryCode) {
+        throw new ApiHttpError(400, "VALIDATION_ERROR", "countryCode cannot be empty.");
+      }
+      patch.country_code = countryCode;
+    }
+    if (typeof body.countryName === "string") {
+      const countryName = body.countryName.trim();
+      if (!countryName) {
+        throw new ApiHttpError(400, "VALIDATION_ERROR", "countryName cannot be empty.");
+      }
+      patch.country_name = countryName;
+    }
+    if (typeof body.cityName === "string") {
+      const cityName = body.cityName.trim();
+      if (!cityName) {
+        throw new ApiHttpError(400, "VALIDATION_ERROR", "cityName cannot be empty.");
+      }
+      patch.city_name = sanitizeGeoLabel(cityName) ?? current.country_name;
+    }
+    if (typeof body.regionCode === "string") {
+      patch.region_code = body.regionCode.trim() || null;
+    }
+    if (typeof body.regionName === "string") {
+      patch.region_name = body.regionName.trim() || null;
+    }
+    if (typeof body.geoGranularity === "string") {
+      if (body.geoGranularity !== "city" && body.geoGranularity !== "region" && body.geoGranularity !== "country") {
+        throw new ApiHttpError(400, "VALIDATION_ERROR", "geoGranularity must be city/region/country.");
+      }
+      patch.geo_granularity = body.geoGranularity;
+    }
+
+    const geoFieldsTouched =
+      patch.country_code !== undefined ||
+      patch.city_name !== undefined ||
+      patch.region_code !== undefined ||
+      patch.geo_granularity !== undefined;
+
+    if (typeof body.geoClusterKey === "string") {
+      patch.geo_cluster_key = body.geoClusterKey.trim() || null;
+    } else if (geoFieldsTouched) {
+      const hasCountryCodePatch = Object.prototype.hasOwnProperty.call(patch, "country_code");
+      const hasCityNamePatch = Object.prototype.hasOwnProperty.call(patch, "city_name");
+      const hasRegionCodePatch = Object.prototype.hasOwnProperty.call(patch, "region_code");
+
+      const mergedCountryCode = String(
+        hasCountryCodePatch ? patch.country_code : current.country_code
+      ).toUpperCase();
+      const mergedGeoGranularity =
+        (Object.prototype.hasOwnProperty.call(patch, "geo_granularity")
+          ? patch.geo_granularity
+          : current.geo_granularity) ?? "country";
+      const mergedCityName = String(
+        sanitizeGeoLabel(String(hasCityNamePatch ? patch.city_name : current.city_name)) ?? ""
+      )
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+      const mergedRegionCode = String(
+        sanitizeGeoLabel(String(hasRegionCodePatch ? (patch.region_code ?? "") : (current.region_code ?? ""))) ?? ""
+      )
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+      const computedCluster = mergedGeoGranularity === "city" && mergedCityName
+        ? `${mergedCountryCode.toLowerCase()}:${mergedRegionCode || "na"}:${mergedCityName}`
+        : (mergedGeoGranularity === "city" || mergedGeoGranularity === "region") && mergedRegionCode
+          ? `${mergedCountryCode.toLowerCase()}:${mergedRegionCode}`
+          : mergedCountryCode.toLowerCase();
+
+      patch.geo_cluster_key = computedCluster;
     }
 
     if (Object.keys(patch).length === 0) {

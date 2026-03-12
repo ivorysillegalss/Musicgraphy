@@ -1,4 +1,5 @@
 import { getCountryCoordinates } from "@/lib/country-centroid";
+import { sanitizeGeoLabel } from "@/lib/geo-label";
 import type { UserRecord } from "@/lib/types";
 
 export type UserRecordRow = {
@@ -40,6 +41,10 @@ function parseTags(value: UserRecordRow["personal_tags"]): string[] {
 }
 
 export function mapRowToUserRecord(row: UserRecordRow): UserRecord {
+  const cityName = sanitizeGeoLabel(row.city_name);
+  const regionCode = sanitizeGeoLabel(row.region_code);
+  const regionName = sanitizeGeoLabel(row.region_name);
+
   return {
     id: row.id,
     albumMbid: row.album_mbid,
@@ -54,10 +59,10 @@ export function mapRowToUserRecord(row: UserRecordRow): UserRecord {
       artistName: row.artist_name,
       countryCode: row.country_code,
       countryName: row.country_name,
-      cityName: row.city_name,
-      regionCode: row.region_code ?? null,
-      regionName: row.region_name ?? null,
-      geoGranularity: row.geo_granularity ?? (row.city_name ? "city" : row.region_code ? "region" : "country"),
+      cityName,
+      regionCode,
+      regionName,
+      geoGranularity: row.geo_granularity ?? (cityName ? "city" : regionCode ? "region" : "country"),
       coordinates:
         typeof row.lng === "number" && typeof row.lat === "number"
           ? { lng: row.lng, lat: row.lat }

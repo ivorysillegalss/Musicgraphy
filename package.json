@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "backfill:geo": "node scripts/backfill-geo-clusters.mjs",
     "migrate:supabase": "node --env-file=.env.local scripts/migrate-supabase-to-sqlite.mjs",
     "cleanup:supabase": "node scripts/cleanup-supabase-config.mjs"
   },

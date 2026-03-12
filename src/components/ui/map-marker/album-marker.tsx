@@ -7,7 +7,6 @@ import { AlbumArtImage } from "@/components/ui/album-art-image";
 
 type AlbumMarkerProps = {
   data: DiscoveryAlbum;
-  zoom?: number;
   size?: number;
   isSelected?: boolean;
   onClick: () => void;
@@ -15,7 +14,6 @@ type AlbumMarkerProps = {
 
 export const AlbumMarker = memo(function AlbumMarker({
   data,
-  zoom = 1,
   size,
   isSelected = false,
   onClick,

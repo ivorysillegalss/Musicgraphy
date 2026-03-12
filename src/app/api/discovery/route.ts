@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const south = parseNumber(url.searchParams.get("south"), -85, "south");
     const east = parseNumber(url.searchParams.get("east"), 180, "east");
     const north = parseNumber(url.searchParams.get("north"), 85, "north");
-    const zoom = parseNumber(url.searchParams.get("zoom"), 1.5, "zoom");
+    parseNumber(url.searchParams.get("zoom"), 1.5, "zoom");
     const minYear = Math.trunc(parseNumber(url.searchParams.get("minYear"), 1960, "minYear"));
     const maxYear = Math.trunc(parseNumber(url.searchParams.get("maxYear"), 2030, "maxYear"));
     const seed = url.searchParams.get("seed") ?? undefined;

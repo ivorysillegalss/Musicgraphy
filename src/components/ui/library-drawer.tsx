@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Heart, History, Music, Trash2, Filter } from "lucide-react";
+import { X, Heart, History, Trash2, Filter } from "lucide-react";
 import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
 import type { UserRecord } from "@/lib/types";
 import { AlbumArtImage } from "@/components/ui/album-art-image";
@@ -21,7 +21,8 @@ function normalizeTag(tag: string) {
 }
 
 function buildAlbumTags(album: DiscoveryAlbum) {
-  const rawTags: string[] = Array.isArray((album as any).tags) ? (album as any).tags : [];
+  const maybeTags = (album as DiscoveryAlbum & { tags?: unknown }).tags;
+  const rawTags: string[] = Array.isArray(maybeTags) ? maybeTags.map((tag) => String(tag)) : [];
   const cleanedRaw = rawTags
     .map((t) => normalizeTag(String(t)))
     .filter((t): t is string => Boolean(t));

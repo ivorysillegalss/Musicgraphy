@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MapPin, Music2, Globe, Calendar, LogIn } from "lucide-react";
+import { X, MapPin, Music2, Globe, Calendar } from "lucide-react";
 
 type GuideModalProps = {
   isOpen: boolean;
@@ -61,7 +61,7 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
                        <div>
                          <h3 className="font-semibold text-zinc-100">Personal Tracks</h3>
                          <p className="text-sm text-zinc-400 mt-1">
-                           Mark albums as "Heard" (Green dots). Your history is visualized directly on the same map layer.
+                           Mark albums as &quot;Heard&quot; (Green dots). Your history is visualized directly on the same map layer.
                          </p>
                        </div>
                     </div>

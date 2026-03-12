@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Library } from "lucide-react";
 
@@ -65,6 +66,7 @@ function createLocalRecordFromAlbum(album: DiscoveryAlbum): UserRecord {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -634,6 +636,9 @@ export default function Home() {
         isLocalMode={localTestMode}
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenMbTokens={openMbTokenModal}
+        onOpenManage={() => {
+          router.push("/manage/discovery");
+        }}
         onSignOut={signOut}
         onAuthClick={() => setIsAuthOpen(true)}
       />

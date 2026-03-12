@@ -13,6 +13,7 @@ import { AlbumArtImage } from "@/components/ui/album-art-image";
 import { MemoizedGeographies } from "@/components/ui/memoized-geographies";
 import { MapControls } from "@/components/ui/map-controls";
 import { SearchOverlay } from "@/components/ui/search-overlay";
+import { sanitizeGeoLabel } from "@/lib/geo-label";
 
 type WorldMapProps = {
   userRecords: UserRecord[];
@@ -38,6 +39,44 @@ const SVG_HEIGHT = 620;
 const MAX_DISCOVERY_SIZE = 96;
 const MAX_USER_SIZE = 72;
 
+const COLLISION_TUNING = {
+  gapPx: 3,
+  baseIterations: 30,
+  maxIterations: 42,
+  baseClusterIterations: 10,
+  maxClusterIterations: 16,
+  minDisplacementPx: 16,
+  maxDisplacementPx: 36,
+};
+
+const COLLISION_PRESET_STORAGE_KEY = "dream.collision.tuning.v1";
+
+type CollisionTweakState = {
+  iterationsOffset: number;
+  clusterIterationsOffset: number;
+  gapPx: number;
+  maxDisplacementOffset: number;
+};
+
+// Shipping baseline tuned for dense metro clusters while keeping geo drift bounded.
+const SHIPPING_COLLISION_TWEAKS: CollisionTweakState = {
+  iterationsOffset: 4,
+  clusterIterationsOffset: 2,
+  gapPx: 3.25,
+  maxDisplacementOffset: 4,
+};
+
+function sanitizeCollisionTweaks(
+  value: Partial<CollisionTweakState> | null | undefined
+): CollisionTweakState {
+  return {
+    iterationsOffset: Math.round(clamp(Number(value?.iterationsOffset ?? 0), -10, 18)),
+    clusterIterationsOffset: Math.round(clamp(Number(value?.clusterIterationsOffset ?? 0), -6, 12)),
+    gapPx: clamp(Number(value?.gapPx ?? COLLISION_TUNING.gapPx), 1, 8),
+    maxDisplacementOffset: Math.round(clamp(Number(value?.maxDisplacementOffset ?? 0), -12, 20)),
+  };
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -52,6 +91,61 @@ function albumArtistKey(albumTitle: string, artistName: string) {
 
 function albumTitleKey(albumTitle: string) {
   return normalizeCompareValue(albumTitle);
+}
+
+function normalizeClusterPart(value: string | null | undefined) {
+  if (!value) return "";
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function buildGeoClusterKey(input: {
+  countryCode?: string | null;
+  regionCode?: string | null;
+  cityName?: string | null;
+  geoClusterKey?: string | null;
+  geoGranularity?: "city" | "region" | "country";
+}) {
+  if (input.geoClusterKey && input.geoClusterKey.trim()) {
+    return input.geoClusterKey;
+  }
+
+  const country = normalizeClusterPart(input.countryCode) || "xx";
+  if (input.geoGranularity === "country") {
+    return country;
+  }
+
+  const region = normalizeClusterPart(sanitizeGeoLabel(input.regionCode));
+  if (input.geoGranularity === "region") {
+    return region ? `${country}:${region}` : country;
+  }
+
+  const city = normalizeClusterPart(sanitizeGeoLabel(input.cityName));
+
+  if (city) return `${country}:${region || "na"}:${city}`;
+  if (region) return `${country}:${region}`;
+  return country;
+}
+
+function getCollisionProfile(zoom: number, density: number, totalMarkers: number) {
+  const zoomStrength = clamp((zoom - 1) / 5.5, 0, 1);
+  const densityStrength = clamp((density - 1) / 7, 0, 1);
+  const markerStrength = clamp(totalMarkers / 120, 0, 1);
+  const pressure = clamp(zoomStrength * 0.45 + densityStrength * 0.35 + markerStrength * 0.2, 0, 1);
+
+  return {
+    gapPx: COLLISION_TUNING.gapPx,
+    iterations: Math.round(
+      24 + (34 - 24) * pressure
+    ),
+    clusterIterations: Math.round(
+      8 + (14 - 8) * pressure
+    ),
+    maxDisplacementPx: clamp(12 + zoom * 2.4 + densityStrength * 2.2, 14, 28),
+  };
 }
 
 function makeSeedSalt() {
@@ -112,17 +206,31 @@ function hashStringToInt(value: string): number {
   return hash;
 }
 
-function resolveMarkerCollisions<T extends { id: string; x: number; y: number; radius: number }>(
+function resolveMarkerCollisions<T extends { id: string; x: number; y: number; radius: number; clusterKey?: string }>(
   markers: T[],
   opts: {
     width: number;
     height: number;
     iterations?: number;
+    clusterIterations?: number;
     gapPx?: number;
+    maxDisplacementPx?: number;
   }
 ): Array<T & { x: number; y: number; anchorX: number; anchorY: number }> {
+  if (markers.length <= 1) {
+    return markers.map((marker) => ({
+      ...marker,
+      x: marker.x,
+      y: marker.y,
+      anchorX: marker.x,
+      anchorY: marker.y,
+    }));
+  }
+
   const iterations = opts.iterations ?? 28;
+  const clusterIterations = opts.clusterIterations ?? 10;
   const gapPx = opts.gapPx ?? 2;
+  const maxDisplacementPx = opts.maxDisplacementPx ?? 28;
 
   const nodes = markers.map((marker) => ({
     ...marker,
@@ -138,6 +246,116 @@ function resolveMarkerCollisions<T extends { id: string; x: number; y: number; r
     return { x: Math.cos(angle), y: Math.sin(angle) };
   };
 
+  const clampNodeOffset = (node: { x: number; y: number; anchorX: number; anchorY: number }) => {
+    const dx = node.x - node.anchorX;
+    const dy = node.y - node.anchorY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist <= maxDisplacementPx || dist < 0.0001) return;
+    const ratio = maxDisplacementPx / dist;
+    node.x = node.anchorX + dx * ratio;
+    node.y = node.anchorY + dy * ratio;
+  };
+
+  const resolveOverlap = (
+    a: { id: string; x: number; y: number; radius: number },
+    b: { id: string; x: number; y: number; radius: number },
+    pushStrength: number
+  ) => {
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    let distSq = dx * dx + dy * dy;
+    const minDist = a.radius + b.radius + gapPx;
+
+    if (distSq >= minDist * minDist) {
+      return false;
+    }
+
+    if (distSq < 0.0001) {
+      const nudge = nudgeFromId(`${a.id}:${b.id}`);
+      dx = nudge.x;
+      dy = nudge.y;
+      distSq = 1;
+    }
+
+    const dist = Math.sqrt(distSq);
+    const overlap = minDist - dist;
+    const ux = dx / dist;
+    const uy = dy / dist;
+
+    a.x -= ux * overlap * pushStrength;
+    a.y -= uy * overlap * pushStrength;
+    b.x += ux * overlap * pushStrength;
+    b.y += uy * overlap * pushStrength;
+    return true;
+  };
+
+  // Deterministic cluster slotting keeps same-region markers separated and visually stable.
+  const byCluster = new Map<string, typeof nodes>();
+  for (const node of nodes) {
+    const key = node.clusterKey?.trim() || `single:${node.id}`;
+    const list = byCluster.get(key) ?? [];
+    list.push(node);
+    byCluster.set(key, list);
+  }
+
+  const GOLDEN_ANGLE = 2.399963229728653;
+  for (const [key, clusterNodes] of byCluster.entries()) {
+    if (clusterNodes.length <= 1) continue;
+
+    const sorted = [...clusterNodes].sort(
+      (a, b) => hashStringToInt(`${key}:${a.id}`) - hashStringToInt(`${key}:${b.id}`)
+    );
+    const centerX = sorted.reduce((sum, node) => sum + node.anchorX, 0) / sorted.length;
+    const centerY = sorted.reduce((sum, node) => sum + node.anchorY, 0) / sorted.length;
+    const maxRadius = sorted.reduce((max, node) => Math.max(max, node.radius), 0);
+    const spacing = maxRadius * 2 + gapPx + 1;
+    const rotation = ((hashStringToInt(key) % 360) * Math.PI) / 180;
+
+    for (let index = 0; index < sorted.length; index += 1) {
+      const node = sorted[index];
+      if (index === 0) {
+        node.x = centerX;
+        node.y = centerY;
+      } else {
+        const angle = rotation + index * GOLDEN_ANGLE;
+        const radius = Math.sqrt(index) * spacing;
+        node.x = centerX + Math.cos(angle) * radius;
+        node.y = centerY + Math.sin(angle) * radius;
+      }
+
+      // Use slot positions as anchors so zooming does not cause violent re-shuffling.
+      node.anchorX = node.x;
+      node.anchorY = node.y;
+    }
+  }
+
+  // Phase 1: prioritize small local spread inside the same city/region cluster.
+  for (let iter = 0; iter < clusterIterations; iter += 1) {
+    let moved = false;
+
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const a = nodes[i];
+        const b = nodes[j];
+        if (!a.clusterKey || !b.clusterKey || a.clusterKey !== b.clusterKey) {
+          continue;
+        }
+        moved = resolveOverlap(a, b, 0.54) || moved;
+      }
+    }
+
+    for (const node of nodes) {
+      node.x += (node.anchorX - node.x) * 0.14;
+      node.y += (node.anchorY - node.y) * 0.14;
+      clampNodeOffset(node);
+    }
+
+    if (!moved) {
+      break;
+    }
+  }
+
+  // Phase 2: global collision pass while preserving anchor semantics.
   for (let iter = 0; iter < iterations; iter += 1) {
     let moved = false;
 
@@ -145,39 +363,14 @@ function resolveMarkerCollisions<T extends { id: string; x: number; y: number; r
       for (let j = i + 1; j < nodes.length; j += 1) {
         const a = nodes[i];
         const b = nodes[j];
-
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
-        let distSq = dx * dx + dy * dy;
-        const minDist = a.radius + b.radius + gapPx;
-
-        if (distSq >= minDist * minDist) {
-          continue;
-        }
-
-        if (distSq < 0.0001) {
-          const nudge = nudgeFromId(`${a.id}:${b.id}`);
-          dx = nudge.x;
-          dy = nudge.y;
-          distSq = 1;
-        }
-
-        const dist = Math.sqrt(distSq);
-        const overlap = minDist - dist;
-        const ux = dx / dist;
-        const uy = dy / dist;
-
-        a.x -= ux * overlap * 0.5;
-        a.y -= uy * overlap * 0.5;
-        b.x += ux * overlap * 0.5;
-        b.y += uy * overlap * 0.5;
-        moved = true;
+        moved = resolveOverlap(a, b, 0.5) || moved;
       }
     }
 
     for (const node of nodes) {
-      node.x += (node.anchorX - node.x) * 0.08;
-      node.y += (node.anchorY - node.y) * 0.08;
+      node.x += (node.anchorX - node.x) * 0.12;
+      node.y += (node.anchorY - node.y) * 0.12;
+      clampNodeOffset(node);
     }
 
     if (!moved) {
@@ -186,61 +379,6 @@ function resolveMarkerCollisions<T extends { id: string; x: number; y: number; r
   }
 
   return nodes;
-}
-
-function toUserFeatureCollection(
-  records: UserRecord[],
-  yearRange: { min: number; max: number }
-): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: records
-      .filter((record) => {
-        const lng = record.artistGeo.coordinates?.lng;
-        const lat = record.artistGeo.coordinates?.lat;
-        if (lng === undefined || lat === undefined) {
-          return false;
-        }
-        const year = getRecordYear(record);
-        return year >= yearRange.min && year <= yearRange.max;
-      })
-      .map((record) => {
-        const lng = record.artistGeo.coordinates?.lng;
-        const lat = record.artistGeo.coordinates?.lat;
-        return {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [lng!, lat!],
-          },
-          properties: {
-            id: record.id,
-            albumTitle: record.albumTitle,
-            artistName: record.artistGeo.artistName,
-            score: record.score,
-            year: getRecordYear(record),
-          },
-        };
-      }),
-  };
-}
-
-function toDiscoveryFeatureCollection(albums: DiscoveryAlbum[]): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: albums
-      .filter(album => album.coordinates && typeof album.coordinates.lng === 'number' && typeof album.coordinates.lat === 'number')
-      .map((album) => ({
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [album.coordinates.lng, album.coordinates.lat],
-        },
-        properties: {
-          id: album.id,
-        },
-      })),
-  };
 }
 
 export function WorldMap({
@@ -255,7 +393,6 @@ export function WorldMap({
   onToggleFavorite,
   onMarkHeard,
 }: WorldMapProps) {
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
     startX: number;
     startY: number;
@@ -264,7 +401,6 @@ export function WorldMap({
   const panRafRef = useRef<number | null>(null);
   const pendingPanRef = useRef<{ dx: number; dy: number } | null>(null);
 
-  const albumsRef = useRef<DiscoveryAlbum[]>([]);
   const favoritesRef = useRef(favorites);
   const isAuthenticatedRef = useRef(isAuthenticated);
   const onToggleFavoriteRef = useRef(onToggleFavorite);
@@ -272,7 +408,6 @@ export function WorldMap({
 
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [refreshSalt, setRefreshSalt] = useState<string>(() => makeSeedSalt());
-  const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
   const [discoveryAlbums, setDiscoveryAlbums] = useState<DiscoveryAlbum[]>([]);
   const [viewport, setViewport] = useState<DiscoveryViewport | null>(null);
   const [worldGeographies, setWorldGeographies] = useState<GeoJSON.Feature[]>([]);
@@ -284,6 +419,12 @@ export function WorldMap({
   const [searchArtist, setSearchArtist] = useState("");
   const [searchAlbum, setSearchAlbum] = useState("");
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
+  const [isCollisionPanelOpen, setIsCollisionPanelOpen] = useState(false);
+  const [collisionTweaks, setCollisionTweaks] = useState<CollisionTweakState>(
+    SHIPPING_COLLISION_TWEAKS
+  );
+  const [collisionPresetInput, setCollisionPresetInput] = useState("");
+  const [collisionPresetStatus, setCollisionPresetStatus] = useState<string | null>(null);
   const [layerVisibility, setLayerVisibility] = useState(() =>
     isAuthenticated
       ? { roam: true, heard: true, favorites: true }
@@ -305,15 +446,31 @@ export function WorldMap({
   // userFeatureCollection is now defined below filteredUserRecords
 
   useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+
+    try {
+      const raw = window.localStorage.getItem(COLLISION_PRESET_STORAGE_KEY);
+      if (!raw) {
+        setCollisionPresetInput(JSON.stringify(SHIPPING_COLLISION_TWEAKS, null, 2));
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<CollisionTweakState>;
+      const next = sanitizeCollisionTweaks(parsed);
+      setCollisionTweaks(next);
+      setCollisionPresetInput(JSON.stringify(next, null, 2));
+      setCollisionPresetStatus("Loaded saved preset.");
+    } catch {
+      setCollisionPresetInput(JSON.stringify(SHIPPING_COLLISION_TWEAKS, null, 2));
+      setCollisionPresetStatus("Preset parse failed, using shipping baseline.");
+    }
+  }, []);
+
+  useEffect(() => {
     favoritesRef.current = favorites;
     isAuthenticatedRef.current = isAuthenticated;
     onToggleFavoriteRef.current = onToggleFavorite;
     onMarkHeardRef.current = onMarkHeard;
   }, [favorites, isAuthenticated, onMarkHeard, onToggleFavorite]);
-
-  useEffect(() => {
-    albumsRef.current = discoveryAlbums;
-  }, [discoveryAlbums]);
 
   useEffect(() => {
     if (prevAuthRef.current === isAuthenticated) {
@@ -417,8 +574,6 @@ export function WorldMap({
     let cancelled = false;
 
     async function loadDiscoveryAlbums() {
-      setIsLoadingDiscovery(true);
-
       try {
         const params = new URLSearchParams({
           west: String(activeViewport.west),
@@ -460,10 +615,6 @@ export function WorldMap({
         if (!cancelled) {
           setDiscoveryAlbums([]);
         }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingDiscovery(false);
-        }
       }
     }
 
@@ -472,7 +623,7 @@ export function WorldMap({
     return () => {
       cancelled = true;
     };
-  }, [preferredCountries, refreshNonce, viewport, viewCenter, zoom, yearRange.max, yearRange.min]);
+  }, [preferredCountries, refreshNonce, refreshSalt, viewport, viewCenter, zoom, yearRange.max, yearRange.min]);
 
   const projection = useMemo<GeoProjection>(() => {
     return geoNaturalEarth1()
@@ -555,33 +706,50 @@ export function WorldMap({
     });
   }, [favorites, searchArtist, searchAlbum, yearRange.max, yearRange.min]);
 
-  const visibleUserRecords = layerVisibility.heard ? filteredUserRecords : [];
-  const visibleFavoriteAlbums = layerVisibility.favorites ? filteredFavoriteAlbums : [];
-
-  const userFeatureCollection = useMemo(() => toUserFeatureCollection(visibleUserRecords, yearRange), [visibleUserRecords, yearRange]);
+  const visibleUserRecords = useMemo(
+    () => (layerVisibility.heard ? filteredUserRecords : []),
+    [filteredUserRecords, layerVisibility.heard]
+  );
+  const visibleFavoriteAlbums = useMemo(
+    () => (layerVisibility.favorites ? filteredFavoriteAlbums : []),
+    [filteredFavoriteAlbums, layerVisibility.favorites]
+  );
 
   const userMarkers = useMemo(() => {
-    return userFeatureCollection.features
-      .map((featurePoint) => {
-        if (featurePoint.geometry.type !== "Point") {
+    return visibleUserRecords
+      .map((record) => {
+        const lng = record.artistGeo.coordinates?.lng;
+        const lat = record.artistGeo.coordinates?.lat;
+        if (lng === undefined || lat === undefined) {
           return null;
         }
-        const coords = featurePoint.geometry.coordinates as [number, number];
+
+        const year = getRecordYear(record);
+        if (year < yearRange.min || year > yearRange.max) {
+          return null;
+        }
+
         return {
-          lng: coords[0],
-          lat: coords[1],
-          id: featurePoint.properties?.id as string,
-          props: featurePoint.properties as {
-            id: string;
-            albumTitle: string;
-            artistName: string;
-            score: number;
-            year: number;
+          lng,
+          lat,
+          id: record.id,
+          props: {
+            id: record.id,
+            albumTitle: record.albumTitle,
+            artistName: record.artistGeo.artistName,
+            score: record.score,
+            year,
+            geoClusterKey: buildGeoClusterKey({
+              countryCode: record.artistGeo.countryCode,
+              regionCode: record.artistGeo.regionCode,
+              cityName: record.artistGeo.cityName,
+              geoGranularity: record.artistGeo.geoGranularity,
+            }),
           },
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [userFeatureCollection.features]);
+  }, [visibleUserRecords, yearRange.max, yearRange.min]);
 
   const userRecordById = useMemo(() => {
     const map = new Map<string, (typeof userMarkers)[number]>();
@@ -591,56 +759,58 @@ export function WorldMap({
     return map;
   }, [userMarkers]);
 
+  const heardAlbumKeySet = useMemo(
+    () => new Set(userRecords.map((record) => albumArtistKey(record.albumTitle, record.artistGeo.artistName))),
+    [userRecords]
+  );
+  const heardTitleKeySet = useMemo(
+    () => new Set(userRecords.map((record) => albumTitleKey(record.albumTitle))),
+    [userRecords]
+  );
+  const favoriteAlbumKeySet = useMemo(
+    () => new Set(favorites.map((album) => albumArtistKey(album.albumTitle, album.artistName))),
+    [favorites]
+  );
+
 
   const discoveryMarkers = useMemo(() => {
-    // Filter out items present in user records to avoid duplicate icons
-    const safeUserRecords = userRecords || [];
-    const safeFavorites = favorites || [];
-
-    const recordSet = new Set(
-      safeUserRecords.map(
-        (r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName)
-      )
-    );
-    const recordTitleSet = new Set(
-      safeUserRecords.map((r) => albumTitleKey(r.albumTitle))
-    );
-    const favoriteSet = new Set(
-      safeFavorites.map((album) =>
-        albumArtistKey(album.albumTitle, album.artistName)
-      )
-    );
-
     const sourceAlbums = layerVisibility.roam ? filteredAlbums : [];
     const filteredDiscovery = sourceAlbums.filter((album) => {
       const key = albumArtistKey(album.albumTitle, album.artistName);
-      if (recordSet.has(key)) {
+      if (heardAlbumKeySet.has(key)) {
         return false;
       }
-      if (favoriteSet.has(key)) {
+      if (favoriteAlbumKeySet.has(key)) {
         return false;
       }
 
       // If the title already exists in heard records, hide discovery duplicate even when artist aliases differ.
-      return !recordTitleSet.has(albumTitleKey(album.albumTitle));
+      return !heardTitleKeySet.has(albumTitleKey(album.albumTitle));
     });
 
-    const collection = toDiscoveryFeatureCollection(filteredDiscovery);
-    return collection.features
-      .map((featurePoint) => {
-        if (featurePoint.geometry.type !== "Point") {
+    return filteredDiscovery
+      .map((album) => {
+        if (
+          typeof album.coordinates?.lng !== "number" ||
+          typeof album.coordinates?.lat !== "number"
+        ) {
           return null;
         }
-        const coords = featurePoint.geometry.coordinates as [number, number];
-        const id = String(featurePoint.properties?.id ?? "");
         return {
-          lng: coords[0],
-          lat: coords[1],
-          id,
+          lng: album.coordinates.lng,
+          lat: album.coordinates.lat,
+          id: album.id,
+          clusterKey: buildGeoClusterKey({
+            countryCode: album.countryCode,
+            regionCode: album.regionCode,
+            cityName: album.cityName,
+            geoClusterKey: album.geoClusterKey,
+            geoGranularity: album.geoGranularity,
+          }),
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [filteredAlbums, layerVisibility.roam, favorites, userRecords]);
+  }, [favoriteAlbumKeySet, filteredAlbums, heardAlbumKeySet, heardTitleKeySet, layerVisibility.roam]);
 
   const favoriteMarkers = useMemo(() => {
     return visibleFavoriteAlbums.map((album) => ({
@@ -649,6 +819,13 @@ export function WorldMap({
       album,
       lng: album.coordinates.lng,
       lat: album.coordinates.lat,
+      clusterKey: buildGeoClusterKey({
+        countryCode: album.countryCode,
+        regionCode: album.regionCode,
+        cityName: album.cityName,
+        geoClusterKey: album.geoClusterKey,
+        geoGranularity: album.geoGranularity,
+      }),
     }));
   }, [visibleFavoriteAlbums]);
 
@@ -668,6 +845,14 @@ export function WorldMap({
     return map;
   }, [discoveryMarkers]);
 
+  const discoveryAlbumById = useMemo(() => {
+    const map = new Map<string, DiscoveryAlbum>();
+    for (const album of filteredAlbums) {
+      map.set(album.id, album);
+    }
+    return map;
+  }, [filteredAlbums]);
+
   // Marker sizes adapt to zoom and density: fewer markers -> larger; more markers -> smaller and tighter
   const totalMarkers = discoveryMarkers.length + userMarkers.length + favoriteMarkers.length;
   const density = Math.max(1, Math.sqrt(totalMarkers || 1));
@@ -684,6 +869,72 @@ export function WorldMap({
     const size = base / (1 + (density - 1) * 0.25);
     return clamp(size, 26, MAX_USER_SIZE);
   }, [zoomScale, density]);
+
+  const collisionProfile = useMemo(() => {
+    const base = getCollisionProfile(zoom, density, totalMarkers);
+    return {
+      iterations: clamp(
+        base.iterations + collisionTweaks.iterationsOffset,
+        COLLISION_TUNING.baseIterations - 10,
+        COLLISION_TUNING.maxIterations + 18
+      ),
+      clusterIterations: clamp(
+        base.clusterIterations + collisionTweaks.clusterIterationsOffset,
+        4,
+        COLLISION_TUNING.maxClusterIterations + 12
+      ),
+      gapPx: clamp(collisionTweaks.gapPx, 1, 8),
+      maxDisplacementPx: clamp(
+        base.maxDisplacementPx + collisionTweaks.maxDisplacementOffset,
+        12,
+        52
+      ),
+    };
+  }, [zoom, density, totalMarkers, collisionTweaks]);
+
+  const activeCollisionPresetJson = useMemo(
+    () => JSON.stringify(collisionTweaks, null, 2),
+    [collisionTweaks]
+  );
+
+  async function copyCollisionPreset() {
+    try {
+      await navigator.clipboard.writeText(activeCollisionPresetJson);
+      setCollisionPresetStatus("Preset JSON copied.");
+    } catch {
+      setCollisionPresetStatus("Copy failed.");
+    }
+  }
+
+  function saveCollisionPreset() {
+    try {
+      window.localStorage.setItem(COLLISION_PRESET_STORAGE_KEY, activeCollisionPresetJson);
+      setCollisionPresetStatus("Preset saved.");
+    } catch {
+      setCollisionPresetStatus("Save failed.");
+    }
+  }
+
+  function clearSavedCollisionPreset() {
+    try {
+      window.localStorage.removeItem(COLLISION_PRESET_STORAGE_KEY);
+      setCollisionPresetStatus("Saved preset cleared.");
+    } catch {
+      setCollisionPresetStatus("Clear failed.");
+    }
+  }
+
+  function applyCollisionPresetFromInput() {
+    try {
+      const parsed = JSON.parse(collisionPresetInput) as Partial<CollisionTweakState>;
+      const sanitized = sanitizeCollisionTweaks(parsed);
+      setCollisionTweaks(sanitized);
+      setCollisionPresetInput(JSON.stringify(sanitized, null, 2));
+      setCollisionPresetStatus("Preset applied.");
+    } catch {
+      setCollisionPresetStatus("Invalid preset JSON.");
+    }
+  }
 
   const jitteredGlobalMarkers = useMemo(() => {
     const VIEWPORT_BUFFER_PX = 80;
@@ -708,6 +959,7 @@ export function WorldMap({
             x: projected[0],
             y: projected[1],
             radius: userMarkerSize / 2,
+            clusterKey: marker.props.geoClusterKey,
           };
         })
         .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
@@ -731,6 +983,7 @@ export function WorldMap({
             x: projected[0],
             y: projected[1],
             radius: (discoveryMarkerSize * selectedMultiplier) / 2,
+            clusterKey: marker.clusterKey,
           };
         })
         .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
@@ -754,6 +1007,7 @@ export function WorldMap({
             x: projected[0],
             y: projected[1],
             radius: (discoveryMarkerSize * selectedMultiplier) / 2,
+            clusterKey: marker.clusterKey,
           };
         })
         .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
@@ -762,63 +1016,101 @@ export function WorldMap({
     return resolveMarkerCollisions(combined, {
       width: SVG_WIDTH,
       height: SVG_HEIGHT,
-      iterations: 34,
-      gapPx: 3,
+      iterations: collisionProfile.iterations,
+      clusterIterations: collisionProfile.clusterIterations,
+      gapPx: collisionProfile.gapPx,
+      maxDisplacementPx: collisionProfile.maxDisplacementPx,
     });
-  }, [discoveryMarkerSize, discoveryMarkers, favoriteMarkers, projection, selectedDiscovery?.id, userMarkerSize, userMarkers]);
+  }, [collisionProfile, discoveryMarkerSize, discoveryMarkers, favoriteMarkers, projection, selectedDiscovery?.id, userMarkerSize, userMarkers]);
 
-  const jitteredUserMarkers = useMemo(
-    () =>
-      jitteredGlobalMarkers
-        .filter((marker) => marker.layer === "user")
-        .map((marker) => {
-          const source = userRecordById.get(marker.sourceId);
-          if (!source) return null;
-          return {
-            ...marker,
-            props: source.props,
-          };
-        })
-        .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
-    [jitteredGlobalMarkers, userRecordById]
-  );
+  const jitteredMarkerBuckets = useMemo(() => {
+    const users: Array<{
+      id: string;
+      sourceId: string;
+      layer: "user";
+      x: number;
+      y: number;
+      radius: number;
+      anchorX: number;
+      anchorY: number;
+      clusterKey?: string;
+      props: (typeof userMarkers)[number]["props"];
+    }> = [];
+    const discoveries: Array<{
+      id: string;
+      sourceId: string;
+      layer: "discovery";
+      x: number;
+      y: number;
+      radius: number;
+      anchorX: number;
+      anchorY: number;
+      clusterKey?: string;
+    }> = [];
+    const favoritesBucket: Array<{
+      id: string;
+      sourceId: string;
+      layer: "favorite";
+      x: number;
+      y: number;
+      radius: number;
+      anchorX: number;
+      anchorY: number;
+      clusterKey?: string;
+      album: (typeof favoriteMarkers)[number]["album"];
+      favoriteId: string;
+    }> = [];
 
-  const jitteredDiscoveryMarkers = useMemo(
-    () =>
-      jitteredGlobalMarkers
-        .filter((marker) => marker.layer === "discovery")
-        .map((marker) => {
-          const source = discoveryMarkerById.get(marker.sourceId);
-          if (!source) return null;
-          return {
-            ...marker,
-            id: source.id,
-          };
-        })
-        .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
-    [discoveryMarkerById, jitteredGlobalMarkers]
-  );
+    for (const marker of jitteredGlobalMarkers) {
+      if (marker.layer === "user") {
+        const source = userRecordById.get(marker.sourceId);
+        if (source) {
+          users.push({ ...marker, layer: "user", props: source.props });
+        }
+        continue;
+      }
 
-  const jitteredFavoriteMarkers = useMemo(
-    () =>
-      jitteredGlobalMarkers
-        .filter((marker) => marker.layer === "favorite")
-        .map((marker) => {
-          const source = favoriteMarkerById.get(marker.sourceId);
-          if (!source) return null;
-          return {
-            ...marker,
-            album: source.album,
-            favoriteId: source.favoriteId,
-          };
-        })
-        .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
-    [favoriteMarkerById, jitteredGlobalMarkers]
-  );
+      if (marker.layer === "discovery") {
+        const source = discoveryMarkerById.get(marker.sourceId);
+        if (source) {
+          discoveries.push({ ...marker, layer: "discovery", id: source.id });
+        }
+        continue;
+      }
+
+      const source = favoriteMarkerById.get(marker.sourceId);
+      if (source) {
+        favoritesBucket.push({
+          ...marker,
+          layer: "favorite",
+          album: source.album,
+          favoriteId: source.favoriteId,
+        });
+      }
+    }
+
+    return {
+      users,
+      discoveries,
+      favorites: favoritesBucket,
+    };
+  }, [discoveryMarkerById, favoriteMarkerById, jitteredGlobalMarkers, userRecordById]);
+
+  const jitteredUserMarkers = jitteredMarkerBuckets.users;
+  const jitteredDiscoveryMarkers = jitteredMarkerBuckets.discoveries;
+  const jitteredFavoriteMarkers = jitteredMarkerBuckets.favorites;
+
+  const userRecordByRecordId = useMemo(() => {
+    const map = new Map<string, UserRecord>();
+    for (const record of userRecords) {
+      map.set(record.id, record);
+    }
+    return map;
+  }, [userRecords]);
 
   const selectedUserRecord = useMemo(
-    () => userRecords.find((record) => record.id === selectedUserRecordId) ?? null,
-    [selectedUserRecordId, userRecords]
+    () => (selectedUserRecordId ? userRecordByRecordId.get(selectedUserRecordId) ?? null : null),
+    [selectedUserRecordId, userRecordByRecordId]
   );
 
   // Respond to external selection (e.g., from Library drawer)
@@ -847,13 +1139,6 @@ export function WorldMap({
 
     onExternalSelectionHandled?.();
   }, [externalSelection, onExternalSelectionHandled]);
-
-  // Ensure selected discovery is in albumsRef so it renders
-  useEffect(() => {
-    if (selectedDiscovery && !albumsRef.current.some(a => a.id === selectedDiscovery.id)) {
-      albumsRef.current = [...albumsRef.current, selectedDiscovery];
-    }
-  }, [selectedDiscovery]);
 
   function handleWheel(event: React.WheelEvent<SVGSVGElement>) {
     if (event.cancelable) {
@@ -1025,6 +1310,174 @@ export function WorldMap({
         className="absolute right-6 top-1/2 -translate-y-1/2 z-20"
       />
 
+      {process.env.NODE_ENV !== "production" ? (
+        <div className="absolute right-6 top-24 z-30 pointer-events-auto">
+          {!isCollisionPanelOpen ? (
+            <button
+              onClick={() => setIsCollisionPanelOpen(true)}
+              className="rounded-full border border-amber-500/40 bg-black/60 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-amber-200 shadow-lg backdrop-blur hover:bg-black/75"
+            >
+              Collision Tuning
+            </button>
+          ) : (
+            <div className="w-[320px] rounded-xl border border-white/15 bg-black/75 p-3 text-zinc-200 shadow-2xl backdrop-blur">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-200">
+                  Collision Tuning
+                </p>
+                <button
+                  onClick={() => setIsCollisionPanelOpen(false)}
+                  className="text-[10px] text-zinc-400 hover:text-zinc-100"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="space-y-3 text-[11px]">
+                <label className="block">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Iterations Offset</span>
+                    <span className="text-cyan-300">{collisionTweaks.iterationsOffset}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={-10}
+                    max={18}
+                    step={1}
+                    value={collisionTweaks.iterationsOffset}
+                    onChange={(e) =>
+                      setCollisionTweaks((prev) => ({
+                        ...prev,
+                        iterationsOffset: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Cluster Iterations Offset</span>
+                    <span className="text-cyan-300">{collisionTweaks.clusterIterationsOffset}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={-6}
+                    max={12}
+                    step={1}
+                    value={collisionTweaks.clusterIterationsOffset}
+                    onChange={(e) =>
+                      setCollisionTweaks((prev) => ({
+                        ...prev,
+                        clusterIterationsOffset: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Gap Px</span>
+                    <span className="text-cyan-300">{collisionTweaks.gapPx.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={8}
+                    step={0.25}
+                    value={collisionTweaks.gapPx}
+                    onChange={(e) =>
+                      setCollisionTweaks((prev) => ({
+                        ...prev,
+                        gapPx: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span>Displacement Offset</span>
+                    <span className="text-cyan-300">{collisionTweaks.maxDisplacementOffset}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={-12}
+                    max={20}
+                    step={1}
+                    value={collisionTweaks.maxDisplacementOffset}
+                    onChange={(e) =>
+                      setCollisionTweaks((prev) => ({
+                        ...prev,
+                        maxDisplacementOffset: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 space-y-2 text-[10px] text-zinc-400">
+                <div className="flex items-center justify-between gap-2">
+                  <span>
+                    Active: {collisionProfile.iterations}/{collisionProfile.clusterIterations} / gap {collisionProfile.gapPx.toFixed(1)} / disp {collisionProfile.maxDisplacementPx.toFixed(0)}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setCollisionTweaks(SHIPPING_COLLISION_TWEAKS);
+                      setCollisionPresetInput(JSON.stringify(SHIPPING_COLLISION_TWEAKS, null, 2));
+                      setCollisionPresetStatus("Shipping baseline applied.");
+                    }}
+                    className="rounded bg-white/10 px-2 py-1 text-zinc-200 hover:bg-white/20"
+                  >
+                    Baseline
+                  </button>
+                </div>
+
+                <textarea
+                  value={collisionPresetInput}
+                  onChange={(e) => setCollisionPresetInput(e.target.value)}
+                  className="h-24 w-full resize-none rounded border border-white/15 bg-black/45 p-2 font-mono text-[10px] text-zinc-200"
+                />
+
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    onClick={() => void copyCollisionPreset()}
+                    className="rounded bg-white/10 px-2 py-1 text-zinc-200 hover:bg-white/20"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    onClick={saveCollisionPreset}
+                    className="rounded bg-white/10 px-2 py-1 text-zinc-200 hover:bg-white/20"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={applyCollisionPresetFromInput}
+                    className="rounded bg-cyan-500/20 px-2 py-1 text-cyan-200 hover:bg-cyan-500/30"
+                  >
+                    Apply
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={clearSavedCollisionPreset}
+                    className="rounded bg-white/5 px-2 py-1 text-zinc-300 hover:bg-white/15"
+                  >
+                    Clear Saved
+                  </button>
+                  {collisionPresetStatus ? <span>{collisionPresetStatus}</span> : null}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       <SearchOverlay
         isOpen={isSearchOpen}
         onClose={() => {
@@ -1067,10 +1520,7 @@ export function WorldMap({
         }}
       />
 
-      <div
-        ref={mapContainerRef}
-        className="w-full h-full bg-[#09090b] relative overflow-hidden"
-      >
+      <div className="w-full h-full bg-[#09090b] relative overflow-hidden">
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="w-full h-full"
@@ -1088,10 +1538,7 @@ export function WorldMap({
         {/* Overlay Layer for Markers */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {jitteredDiscoveryMarkers.map((marker) => {
-              // Check both albumsRef and filteredAlbums to ensure we find the album
-              // This is important for search results that might not be in the initial pool
-              const album = albumsRef.current.find((item) => item.id === marker.id) || 
-                            filteredAlbums.find((item) => item.id === marker.id);
+              const album = discoveryAlbumById.get(marker.id);
               if (!album) return null;
 
               // Use standard div for positioning. Only animate entry if critical, but for performance
@@ -1109,7 +1556,6 @@ export function WorldMap({
                 >
                     <AlbumMarker
                       data={album}
-                      zoom={zoom}
                       size={discoveryMarkerSize}
                       isSelected={selectedDiscovery?.id === marker.id}
                       onClick={() => {
@@ -1163,7 +1609,6 @@ export function WorldMap({
                 <div className="relative">
                   <AlbumMarker
                     data={marker.album}
-                    zoom={zoom}
                     size={discoveryMarkerSize}
                     isSelected={selectedDiscovery?.id === marker.favoriteId}
                     onClick={() => {

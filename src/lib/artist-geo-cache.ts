@@ -1,4 +1,5 @@
 import { dbGet, dbRun } from "@/lib/local-db";
+import { sanitizeGeoLabel } from "@/lib/geo-label";
 
 export type ArtistGeoCacheRecord = {
   artistId: string;
@@ -25,15 +26,19 @@ type ArtistGeoCacheRow = {
 };
 
 function rowToRecord(row: ArtistGeoCacheRow): ArtistGeoCacheRecord {
+  const cityName = sanitizeGeoLabel(row.city_name);
+  const regionCode = sanitizeGeoLabel(row.region_code);
+  const regionName = sanitizeGeoLabel(row.region_name);
+
   return {
     artistId: row.artist_id,
     artistName: row.artist_name,
     countryCode: row.country_code,
     countryName: row.country_name,
-    cityName: row.city_name,
-    regionCode: row.region_code ?? null,
-    regionName: row.region_name ?? null,
-    geoGranularity: row.geo_granularity ?? (row.city_name ? "city" : row.region_code ? "region" : "country"),
+    cityName,
+    regionCode,
+    regionName,
+    geoGranularity: row.geo_granularity ?? (cityName ? "city" : regionCode ? "region" : "country"),
   };
 }
 
@@ -61,6 +66,11 @@ export async function upsertArtistGeoCache(
   coordinates: { lng: number; lat: number } | null,
   rawPayload?: unknown
 ): Promise<void> {
+  const cityName = sanitizeGeoLabel(record.cityName);
+  const regionCode = sanitizeGeoLabel(record.regionCode);
+  const regionName = sanitizeGeoLabel(record.regionName);
+  const geoGranularity = record.geoGranularity ?? (cityName ? "city" : regionCode ? "region" : "country");
+
   await dbRun(
     `insert into artist_geo_cache (
       artist_id, artist_name, country_code, country_name, city_name,
@@ -84,10 +94,10 @@ export async function upsertArtistGeoCache(
       record.artistName,
       record.countryCode,
       record.countryName,
-      record.cityName,
-      record.regionCode ?? null,
-      record.regionName ?? null,
-      record.geoGranularity ?? (record.cityName ? "city" : record.regionCode ? "region" : "country"),
+      cityName,
+      regionCode,
+      regionName,
+      geoGranularity,
       coordinates?.lng ?? null,
       coordinates?.lat ?? null,
       rawPayload ? JSON.stringify(rawPayload) : null,

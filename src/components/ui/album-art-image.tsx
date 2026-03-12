@@ -53,7 +53,8 @@ type AlbumArtImageProps = {
 };
 
 export function AlbumArtImage({ artist, album, className, width, height }: AlbumArtImageProps) {
-  const [src, setSrc] = useState<string | null>(CACHE.get(`${artist}:${album}`) || null);
+  const cacheKey = `${artist}:${album}`;
+  const [src, setSrc] = useState<string | null>(CACHE.get(cacheKey) || null);
   const [hasError, setHasError] = useState(false);
 
   // Fallback to local deterministic "initials" generator
@@ -61,20 +62,23 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
   const fallbackUrl = getAlbumCoverUrl(artist, album, "medium");
 
   useEffect(() => {
-    // Reset state when artist/album changes
-    const cached = CACHE.get(`${artist}:${album}`);
-    if (cached) {
-      setSrc(cached);
-      setHasError(false);
-      return;
-    }
-    
-    setSrc(null);
-    setHasError(false);
-
     let active = true;
 
-    async function load() {
+    async function loadCover() {
+      setHasError(false);
+
+      const cached = CACHE.get(cacheKey);
+      if (cached) {
+        if (active) {
+          setSrc(cached);
+        }
+        return;
+      }
+
+      if (active) {
+        setSrc(null);
+      }
+
       const url = await fetchItunesCover(artist, album);
       if (active) {
         if (url) {
@@ -85,12 +89,12 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
       }
     }
 
-    void load();
+    void loadCover();
 
     return () => {
       active = false;
     };
-  }, [artist, album]);
+  }, [artist, album, cacheKey]);
 
   // If there's an error loading the iTunes image, fall back to initial generator
   const finalSrc = !hasError && src ? src : fallbackUrl;

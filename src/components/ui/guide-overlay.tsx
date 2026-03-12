@@ -71,7 +71,7 @@ export function GuideOverlay({ isOpen, onClose, configured }: GuideOverlayProps)
                 <div>
                   <h3 className="font-medium text-white">Personal Tracking</h3>
                   <p className="mt-1 text-sm text-zinc-400">
-                    Login to mark albums as "Listened". 
+                    Login to mark albums as &quot;Listened&quot;. 
                     {!configured && (
                       <span className="block mt-1 text-amber-500 text-xs py-1 px-2 bg-amber-500/10 rounded border border-amber-500/20">
                          Demo Mode: Local storage only (local backend not configured).

@@ -158,6 +158,19 @@
 - 视觉验证：小国与高密城市不漂移、不遮挡过度。
 - 性能验证：刷新与缩放交互不出现明显卡顿。
 
+## 10. 区域补全实现（已落地）
+
+- 新增 `src/lib/geo-region.ts`，使用 `country-state-city` 在本地离线推断 `region_code/region_name`。
+- 写入链路（`src/lib/record-ingest.ts`）已接入：
+  - `resolveArtistGeoWithCache` 在缓存命中但 region 缺失时会尝试补全并回写缓存。
+  - 首次解析到艺术家地理信息后，会优先推断 region，再写入缓存与记录。
+- 回填链路（`scripts/backfill-geo-clusters.mjs`）已接入：
+  - 批量补齐 `discovery_pool`、`user_records`、`artist_geo_cache` 的 `region_code/region_name`。
+  - 同步重算 `geo_granularity` 与 `geo_cluster_key`。
+
+执行命令：
+- `npm run backfill:geo`
+
 ## 9. 验收标准（正式编码前对齐）
 
 - 功能：`/api/discovery` 在 20-30 返回量下，样本分布不再被单一国家主导。
