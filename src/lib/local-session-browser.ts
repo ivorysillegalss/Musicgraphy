@@ -73,6 +73,15 @@ function ensureDefaultSession() {
     return existing;
   }
 
+  // Do not default-login if accessed from a non-localhost IP to prevent remote users from having full access by default.
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    const forceAuth = process.env.NEXT_PUBLIC_FORCE_DEFAULT_AUTH === "true";
+    if (hostname !== "localhost" && hostname !== "127.0.0.1" && !forceAuth) {
+      return null;
+    }
+  }
+
   const email =
     process.env.NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL?.trim() ||
     "local@localhost";

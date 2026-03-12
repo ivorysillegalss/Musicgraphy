@@ -9,6 +9,7 @@ interface MapControlsProps {
   onZoomChange: (value: number) => void;
   onSearchClick: () => void;
   onRefresh?: () => void;
+  showSearch?: boolean;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export function MapControls({
   onZoomChange,
   onSearchClick,
   onRefresh,
+  showSearch = true,
   className,
 }: MapControlsProps) {
   return (
@@ -26,13 +28,15 @@ export function MapControls({
         className
       )}
     >
-      <button
-        onClick={onSearchClick}
-        className="p-2 rounded-full hover:bg-white/10 transition-colors text-zinc-200"
-        title="Search"
-      >
-        <Search className="w-5 h-5" />
-      </button>
+      {showSearch && (
+        <button
+          onClick={onSearchClick}
+          className="p-2 rounded-full hover:bg-white/10 transition-colors text-zinc-200"
+          title="Search"
+        >
+          <Search className="w-5 h-5" />
+        </button>
+      )}
 
       {onRefresh ? (
         <button

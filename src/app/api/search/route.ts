@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { ApiHttpError, handleApiError } from "@/lib/api-error";
+import { getLocalAuthUser } from "@/lib/local-auth";
 import { DISCOVERY_ALBUM_CATALOG } from "@/lib/discovery-catalog";
 import { dbAll, dbGet, dbRun } from "@/lib/local-db";
 import { searchReleasesByFields, resolveArtistGeoById } from "@/lib/musicbrainz";
@@ -109,7 +111,10 @@ function hasExactMatch(rows: Array<{ album_title: string; artist_name: string }>
   }
 
   if (aq) {
-    return rows.some((row) => normalizeText(row.artist_name) === aq);
+    // Artist-only search is an entity query, not a full result query.
+    // Even if artist name matches exactly, we may still need external expansion
+    // when local albums are sparse.
+    return false;
   }
 
   if (q) {
@@ -191,14 +196,17 @@ async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get("q")?.toLowerCase().trim() || "";
-  const artistQuery = searchParams.get("artist")?.trim() || "";
-  const albumQuery = searchParams.get("album")?.trim() || "";
-  const combinedQuery = `${artistQuery} ${albumQuery} ${query}`.trim();
-  const allowExternal = searchParams.get("allowExternal") === "1";
-  const userId = request.headers.get("x-user-id")?.trim() || null;
-  const userMbToken = await getUserMbToken(userId, combinedQuery || "seed");
+  try {
+    const user = await getLocalAuthUser(request);
+    
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get("q")?.toLowerCase().trim() || "";
+    const artistQuery = searchParams.get("artist")?.trim() || "";
+    const albumQuery = searchParams.get("album")?.trim() || "";
+    const combinedQuery = `${artistQuery} ${albumQuery} ${query}`.trim();
+    const allowExternal = searchParams.get("allowExternal") === "1";
+    const userId = user.id;
+    const userMbToken = await getUserMbToken(userId, combinedQuery || "seed");
 
   if (!combinedQuery) {
     const emptyMeta: SearchMeta = {
@@ -550,4 +558,7 @@ export async function GET(request: Request) {
   };
 
   return NextResponse.json({ results: filtered, meta });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }

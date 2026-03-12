@@ -46,9 +46,9 @@ export async function GET(request: Request) {
       for (let i = 0; i < seed.length; i++) {
         hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
       }
-      calculatedLimit = 20 + (hash % 11); // Deterministic Random between 20 and 30
+      calculatedLimit = 20 + (hash % 5); // Deterministic range: 20-24
     } else {
-      calculatedLimit = 20 + Math.floor(Math.random() * 11);
+      calculatedLimit = 20 + Math.floor(Math.random() * 5);
     }
     const limit = calculatedLimit;
 

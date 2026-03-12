@@ -14,6 +14,7 @@ import { MemoizedGeographies } from "@/components/ui/memoized-geographies";
 import { MapControls } from "@/components/ui/map-controls";
 import { SearchOverlay } from "@/components/ui/search-overlay";
 import { sanitizeGeoLabel } from "@/lib/geo-label";
+import { X } from "lucide-react";
 
 type WorldMapProps = {
   userRecords: UserRecord[];
@@ -107,28 +108,64 @@ function normalizeClusterPart(value: string | null | undefined) {
     .replace(/[^a-z0-9-]/g, "");
 }
 
+function hasMeaningfulCityLabel(input: {
+  cityName?: string | null;
+  countryCode?: string | null;
+  countryName?: string | null;
+}) {
+  const city = normalizeClusterPart(sanitizeGeoLabel(input.cityName));
+  if (!city) return false;
+
+  const countryCode = normalizeClusterPart(input.countryCode);
+  const countryName = normalizeClusterPart(sanitizeGeoLabel(input.countryName));
+
+  if (countryCode && city === countryCode) return false;
+  if (countryName && city === countryName) return false;
+  return true;
+}
+
+function inferEffectiveGeoGranularity(input: {
+  cityName?: string | null;
+  regionCode?: string | null;
+  countryCode?: string | null;
+  countryName?: string | null;
+  geoGranularity?: "city" | "region" | "country";
+}) {
+  if (hasMeaningfulCityLabel(input)) {
+    return "city" as const;
+  }
+
+  const region = normalizeClusterPart(sanitizeGeoLabel(input.regionCode));
+  if (region) {
+    return "region" as const;
+  }
+
+  return "country" as const;
+}
+
 function buildGeoClusterKey(input: {
   countryCode?: string | null;
+  countryName?: string | null;
   regionCode?: string | null;
   cityName?: string | null;
   geoClusterKey?: string | null;
   geoGranularity?: "city" | "region" | "country";
 }) {
-  if (input.geoClusterKey && input.geoClusterKey.trim()) {
-    return input.geoClusterKey;
-  }
-
   const country = normalizeClusterPart(input.countryCode) || "xx";
-  if (input.geoGranularity === "country") {
+  const effectiveGranularity = inferEffectiveGeoGranularity(input);
+
+  if (effectiveGranularity === "country") {
     return country;
   }
 
   const region = normalizeClusterPart(sanitizeGeoLabel(input.regionCode));
-  if (input.geoGranularity === "region") {
+  if (effectiveGranularity === "region") {
     return region ? `${country}:${region}` : country;
   }
 
-  const city = normalizeClusterPart(sanitizeGeoLabel(input.cityName));
+  const city = hasMeaningfulCityLabel(input)
+    ? normalizeClusterPart(sanitizeGeoLabel(input.cityName))
+    : "";
 
   if (city) return `${country}:${region || "na"}:${city}`;
   if (region) return `${country}:${region}`;
@@ -160,6 +197,38 @@ function makeSeedSalt() {
     return buf[0].toString(36);
   }
   return Math.random().toString(36).slice(2);
+}
+
+function normalizeLongitude(lng: number) {
+  return ((lng + 540) % 360) - 180;
+}
+
+function shortestLongitudeDistance(a: number, b: number) {
+  const aNorm = normalizeLongitude(a);
+  const bNorm = normalizeLongitude(b);
+  const raw = Math.abs(aNorm - bNorm);
+  return Math.min(raw, 360 - raw);
+}
+
+function isAlbumInViewport(album: DiscoveryAlbum, viewport: DiscoveryViewport) {
+  const lng = album.coordinates?.lng;
+  const lat = album.coordinates?.lat;
+  if (typeof lng !== "number" || typeof lat !== "number") {
+    return false;
+  }
+
+  const lngCenter = (viewport.west + viewport.east) / 2;
+  const lngHalfSpan = Math.max(0, (viewport.east - viewport.west) / 2);
+  const latCenter = (viewport.south + viewport.north) / 2;
+  const latHalfSpan = Math.max(0, (viewport.north - viewport.south) / 2);
+
+  // Small geographic buffer prevents flicker near the viewport edge during quick pans/zooms.
+  const lngBuffer = Math.max(1.5, lngHalfSpan * 0.04);
+  const latBuffer = Math.max(1, latHalfSpan * 0.04);
+
+  const lngVisible = shortestLongitudeDistance(lng, lngCenter) <= lngHalfSpan + lngBuffer;
+  const latVisible = Math.abs(lat - latCenter) <= latHalfSpan + latBuffer;
+  return lngVisible && latVisible;
 }
 
 type DiscoveryViewport = {
@@ -209,6 +278,18 @@ function hashStringToInt(value: string): number {
     hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
   }
   return hash;
+}
+
+function scatterCountryPoint(lng: number, lat: number, seed: string) {
+  const hash = hashStringToInt(seed || "country-seed");
+  const angle = ((hash % 360) * Math.PI) / 180;
+  const radiusLng = 1.6 + ((hash >>> 7) % 260) / 100; // 1.6 ~ 4.2 deg
+  const radiusLat = radiusLng * 0.58;
+
+  return {
+    lng: clamp(lng + Math.cos(angle) * radiusLng, -180, 180),
+    lat: clamp(lat + Math.sin(angle) * radiusLat, -85, 85),
+  };
 }
 
 function resolveMarkerCollisions<T extends { id: string; x: number; y: number; radius: number; clusterKey?: string }>(
@@ -375,6 +456,29 @@ function resolveMarkerCollisions<T extends { id: string; x: number; y: number; r
     for (const node of nodes) {
       node.x += (node.anchorX - node.x) * 0.12;
       node.y += (node.anchorY - node.y) * 0.12;
+      clampNodeOffset(node);
+    }
+
+    if (!moved) {
+      break;
+    }
+  }
+
+  // Final guardrail: ensure same-region nodes do not end up visually stacked.
+  for (let iter = 0; iter < 12; iter += 1) {
+    let moved = false;
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const a = nodes[i];
+        const b = nodes[j];
+        if (!a.clusterKey || !b.clusterKey || a.clusterKey !== b.clusterKey) {
+          continue;
+        }
+        moved = resolveOverlap(a, b, 0.64) || moved;
+      }
+    }
+
+    for (const node of nodes) {
       clampNodeOffset(node);
     }
 
@@ -605,7 +709,23 @@ export function WorldMap({
         }
 
         if (!cancelled) {
-          setDiscoveryAlbums((payload as DiscoveryResponse).albums ?? []);
+          const incoming = (payload as DiscoveryResponse).albums ?? [];
+          setDiscoveryAlbums((prev) => {
+            const merged = new Map<string, DiscoveryAlbum>();
+
+            for (const album of incoming) {
+              merged.set(album.id, album);
+            }
+
+            // Keep any previously visible markers so rapid position switching does not blink them out.
+            for (const album of prev) {
+              if (!merged.has(album.id) && isAlbumInViewport(album, activeViewport)) {
+                merged.set(album.id, album);
+              }
+            }
+
+            return Array.from(merged.values());
+          });
           lastDiscoveryFetchRef.current = {
             center: [centerLng, centerLat],
             zoom,
@@ -617,9 +737,7 @@ export function WorldMap({
           };
         }
       } catch {
-        if (!cancelled) {
-          setDiscoveryAlbums([]);
-        }
+        // Keep current markers on transient request failure to avoid abrupt disappear/reappear flicker.
       }
     }
 
@@ -640,7 +758,11 @@ export function WorldMap({
   const pathBuilder = useMemo(() => geoPath(projection), [projection]);
 
   const filteredAlbums = useMemo(() => {
-    let baseAlbums = discoveryAlbums;
+    let baseAlbums = discoveryAlbums.filter(
+      (album) =>
+        album.releaseYear >= yearRange.min &&
+        album.releaseYear <= yearRange.max
+    );
     const selectedInYearRange =
       selectedDiscovery &&
       selectedDiscovery.releaseYear >= yearRange.min &&
@@ -711,10 +833,15 @@ export function WorldMap({
     });
   }, [favorites, searchArtist, searchAlbum, yearRange.max, yearRange.min]);
 
-  const visibleUserRecords = useMemo(
-    () => (layerVisibility.heard ? filteredUserRecords : []),
-    [filteredUserRecords, layerVisibility.heard]
-  );
+  const visibleUserRecords = useMemo(() => {
+    const base = layerVisibility.heard ? filteredUserRecords : [];
+    if (selectedUserRecordId && !base.some(r => r.id === selectedUserRecordId)) {
+      const rec = userRecords.find(r => r.id === selectedUserRecordId);
+      if (rec) return [...base, rec];
+    }
+    return base;
+  }, [filteredUserRecords, layerVisibility.heard, selectedUserRecordId, userRecords]);
+
   const visibleFavoriteAlbums = useMemo(
     () => (layerVisibility.favorites ? filteredFavoriteAlbums : []),
     [filteredFavoriteAlbums, layerVisibility.favorites]
@@ -729,14 +856,20 @@ export function WorldMap({
           return null;
         }
 
+        const granularity = record.artistGeo.geoGranularity ?? "city";
+        const displayCoords =
+          granularity === "country"
+            ? scatterCountryPoint(lng, lat, `${record.id}:${record.artistGeo.countryCode ?? "xx"}`)
+            : { lng, lat };
+
         const year = getRecordYear(record);
         if (year < yearRange.min || year > yearRange.max) {
           return null;
         }
 
         return {
-          lng,
-          lat,
+          lng: displayCoords.lng,
+          lat: displayCoords.lat,
           id: record.id,
           props: {
             id: record.id,
@@ -746,6 +879,7 @@ export function WorldMap({
             year,
             geoClusterKey: buildGeoClusterKey({
               countryCode: record.artistGeo.countryCode,
+              countryName: record.artistGeo.countryName,
               regionCode: record.artistGeo.regionCode,
               cityName: record.artistGeo.cityName,
               geoGranularity: record.artistGeo.geoGranularity,
@@ -779,9 +913,26 @@ export function WorldMap({
 
 
   const discoveryMarkers = useMemo(() => {
-    const sourceAlbums = layerVisibility.roam ? filteredAlbums : [];
+    let sourceAlbums = layerVisibility.roam ? filteredAlbums : [];
+    if (selectedDiscovery && !sourceAlbums.some(a => a.id === selectedDiscovery.id)) {
+      sourceAlbums = [...sourceAlbums, selectedDiscovery];
+    }
+
     const filteredDiscovery = sourceAlbums.filter((album) => {
       const key = albumArtistKey(album.albumTitle, album.artistName);
+      
+      if (selectedDiscovery && album.id === selectedDiscovery.id) {
+        const isHeard = heardAlbumKeySet.has(key) || heardTitleKeySet.has(albumTitleKey(album.albumTitle));
+        const isFav = favoriteAlbumKeySet.has(key);
+        
+        const willBeRenderedAsHeard = isHeard && layerVisibility.heard;
+        const willBeRenderedAsFav = isFav && layerVisibility.favorites;
+        
+        if (!willBeRenderedAsHeard && !willBeRenderedAsFav) {
+          return true;
+        }
+      }
+
       if (heardAlbumKeySet.has(key)) {
         return false;
       }
@@ -807,6 +958,7 @@ export function WorldMap({
           id: album.id,
           clusterKey: buildGeoClusterKey({
             countryCode: album.countryCode,
+            countryName: album.countryName,
             regionCode: album.regionCode,
             cityName: album.cityName,
             geoClusterKey: album.geoClusterKey,
@@ -815,7 +967,16 @@ export function WorldMap({
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [favoriteAlbumKeySet, filteredAlbums, heardAlbumKeySet, heardTitleKeySet, layerVisibility.roam]);
+  }, [
+    favoriteAlbumKeySet,
+    filteredAlbums,
+    heardAlbumKeySet,
+    heardTitleKeySet,
+    layerVisibility.roam,
+    layerVisibility.heard,
+    layerVisibility.favorites,
+    selectedDiscovery,
+  ]);
 
   const favoriteMarkers = useMemo(() => {
     return visibleFavoriteAlbums.map((album) => ({
@@ -826,6 +987,7 @@ export function WorldMap({
       lat: album.coordinates.lat,
       clusterKey: buildGeoClusterKey({
         countryCode: album.countryCode,
+        countryName: album.countryName,
         regionCode: album.regionCode,
         cityName: album.cityName,
         geoClusterKey: album.geoClusterKey,
@@ -859,7 +1021,22 @@ export function WorldMap({
   }, [filteredAlbums]);
 
   // Marker sizes adapt to zoom and density: fewer markers -> larger; more markers -> smaller and tighter
-  const totalMarkers = discoveryMarkers.length + userMarkers.length + favoriteMarkers.length;
+  // We use the base count across all filtered lists BEFORE layer toggles are considered,
+  // so that icons maintain a stable size even as layers are toggled on and off.
+  const targetTotalMarkers = useMemo(() => {
+    let roamCount = 0;
+    for (const album of filteredAlbums) {
+      const key = albumArtistKey(album.albumTitle, album.artistName);
+      if (heardAlbumKeySet.has(key)) continue;
+      if (favoriteAlbumKeySet.has(key)) continue;
+      if (heardTitleKeySet.has(albumTitleKey(album.albumTitle))) continue;
+      roamCount++;
+    }
+    return roamCount + filteredUserRecords.length + filteredFavoriteAlbums.length;
+  }, [filteredAlbums, filteredUserRecords.length, filteredFavoriteAlbums.length, heardAlbumKeySet, favoriteAlbumKeySet, heardTitleKeySet]);
+
+  const totalMarkers = targetTotalMarkers;
+  
   const density = Math.max(1, Math.sqrt(totalMarkers || 1));
   const zoomScale = 0.9 + zoom * 0.3; // grow with zoom
 
@@ -1214,23 +1391,30 @@ export function WorldMap({
   }, [userRecords, selectedDiscovery]);
 
   function toggleDiscoverySelection(album: DiscoveryAlbum, focus = true) {
-    let shouldOpen = false;
-    setSelectedDiscovery((prev) => {
-      const same = prev ? isSameAlbumSelection(prev, album) : false;
-      shouldOpen = !same;
-      return same ? null : album;
-    });
+    setSelectedDiscovery(album);
     setSelectedUserRecordId(null);
 
-    if (focus && shouldOpen && album.coordinates) {
+    if (focus && album.coordinates) {
       setViewCenter([album.coordinates.lng, album.coordinates.lat]);
       setZoom((prev) => Math.max(prev, 2.6));
     }
   }
 
-  function toggleUserRecordSelection(recordId: string) {
+  function toggleUserRecordSelection(recordId: string, focus = true) {
     setSelectedDiscovery(null);
-    setSelectedUserRecordId((prev) => (prev === recordId ? null : recordId));
+    setSelectedUserRecordId(recordId);
+
+    if (!focus) {
+      return;
+    }
+
+    const record = userRecordByRecordId.get(recordId);
+    const lng = record?.artistGeo.coordinates?.lng;
+    const lat = record?.artistGeo.coordinates?.lat;
+    if (lng !== undefined && lat !== undefined) {
+      setViewCenter([lng, lat]);
+      setZoom((prev) => Math.max(prev, 2.6));
+    }
   }
 
   return (
@@ -1328,6 +1512,7 @@ export function WorldMap({
         zoom={zoom}
         onZoomChange={setZoom}
         onSearchClick={() => setIsSearchOpen(true)}
+        showSearch={!!userId}
         onRefresh={() => {
           setRefreshSalt(makeSeedSalt());
           setRefreshNonce((value) => value + 1);
@@ -1526,16 +1711,7 @@ export function WorldMap({
           setIsSearchOpen(false);
           setSearchArtist("");
           setSearchAlbum("");
-          toggleUserRecordSelection(record.id);
-          
-          // Handle both possible coordinate structures
-          const lng = record.artistGeo.coordinates?.lng;
-          const lat = record.artistGeo.coordinates?.lat;
-          
-          if (lng !== undefined && lat !== undefined) {
-            setViewCenter([lng, lat]);
-            setZoom(6);
-          }
+          toggleUserRecordSelection(record.id, true);
         }}
       />
 
@@ -1641,11 +1817,19 @@ export function WorldMap({
         {selectedDiscovery ? (
           <motion.div 
             key={`discovery-popup-${selectedDiscovery.id}`}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            className="fixed top-24 right-6 z-[60] w-[320px] rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-zinc-200 backdrop-blur-md shadow-2xl"
+            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-zinc-200 backdrop-blur-xl shadow-2xl sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[320px]"
           >
+            <button
+              type="button"
+              aria-label="关闭专辑弹窗"
+              onClick={() => setSelectedDiscovery(null)}
+              className="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-zinc-900 text-zinc-400 shadow-lg transition-all hover:scale-110 hover:border-white/40 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </button>
             <div className="flex gap-4">
               <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-zinc-800 shadow-inner relative">
                 <AlbumArtImage 
@@ -1697,11 +1881,19 @@ export function WorldMap({
       {selectedUserRecord ? (
         <motion.div 
             key={`user-record-popup-${selectedUserRecord.id}`}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            className="fixed top-24 right-6 z-[60] w-[320px] rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-zinc-200 backdrop-blur-md shadow-2xl"
+            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-zinc-200 backdrop-blur-xl shadow-2xl sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[320px]"
         >
+          <button
+            type="button"
+            aria-label="关闭听过记录弹窗"
+            onClick={() => setSelectedUserRecordId(null)}
+            className="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-zinc-900 text-zinc-400 shadow-lg transition-all hover:scale-110 hover:border-white/40 hover:text-white"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
           <div className="flex gap-4 items-center">
             <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border-2 border-emerald-500 shadow-glow relative">
               <AlbumArtImage 

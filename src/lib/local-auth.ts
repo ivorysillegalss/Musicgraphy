@@ -37,6 +37,17 @@ function parseUserId(request: Request) {
     return fromBearer;
   }
 
+  const host = request.headers.get("host") || "";
+  const hostname = host.split(":")[0];
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  const forceAuth = process.env.NEXT_PUBLIC_FORCE_DEFAULT_AUTH === "true";
+
+  // When accessed remotely (cloud server), do not default to local-user
+  // so that unauthenticated users are forced to log in.
+  if (!isLocalHost && !forceAuth) {
+    return null;
+  }
+
   return process.env.LOCAL_DEFAULT_USER_ID?.trim() || "local-user";
 }
 

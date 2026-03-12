@@ -250,14 +250,14 @@ export function SearchOverlay({
                     type="text"
                     value={artistQuery}
                     onChange={(e) => onArtistQueryChange(e.target.value)}
-                    placeholder="艺人/乐队"
+                    placeholder="艺人or乐队"
                     className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 rounded-lg"
                   />
                   <input
                     type="text"
                     value={albumQuery}
                     onChange={(e) => onAlbumQueryChange(e.target.value)}
-                    placeholder="专辑/单曲"
+                    placeholder="专辑名称"
                     className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 rounded-lg"
                   />
                 </div>

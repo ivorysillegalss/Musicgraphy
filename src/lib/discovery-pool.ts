@@ -4,7 +4,9 @@ import {
   DISCOVERY_ALBUM_CATALOG,
   type DiscoveryAlbum,
 } from "@/lib/discovery-catalog";
+import { getCountryCoordinates } from "@/lib/country-centroid";
 import { sanitizeGeoLabel } from "@/lib/geo-label";
+import { inferRegionFromCountryAndCity } from "@/lib/geo-region";
 
 type DiscoveryPoolFilter = {
   west: number;
@@ -36,6 +38,44 @@ type DiscoveryPoolRow = {
   weight?: number;
 };
 
+function normalizeGeoToken(value: string | null | undefined) {
+  return normalizePart(sanitizeGeoLabel(value));
+}
+
+function hasMeaningfulCity(input: {
+  cityName?: string | null;
+  countryCode?: string | null;
+  countryName?: string | null;
+}) {
+  const city = normalizeGeoToken(input.cityName);
+  if (!city) return false;
+
+  const countryCode = normalizeGeoToken(input.countryCode);
+  const countryName = normalizeGeoToken(input.countryName);
+
+  if (countryCode && city === countryCode) return false;
+  if (countryName && city === countryName) return false;
+  return true;
+}
+
+function resolveEffectiveGranularity(input: {
+  cityName?: string | null;
+  regionCode?: string | null;
+  countryCode?: string | null;
+  countryName?: string | null;
+}) {
+  if (hasMeaningfulCity(input)) {
+    return "city" as const;
+  }
+
+  const region = normalizeGeoToken(input.regionCode);
+  if (region) {
+    return "region" as const;
+  }
+
+  return "country" as const;
+}
+
 function normalizePart(value: string | null | undefined) {
   if (!value) return "";
   return value
@@ -45,26 +85,35 @@ function normalizePart(value: string | null | undefined) {
     .replace(/[^a-z0-9-]/g, "");
 }
 
-function computeClusterKey(album: Pick<DiscoveryAlbum, "countryCode" | "cityName"> & {
+function computeClusterKey(album: Pick<DiscoveryAlbum, "countryCode" | "countryName" | "cityName"> & {
   regionCode?: string | null;
   geoClusterKey?: string;
   geoGranularity?: "city" | "region" | "country";
 }) {
-  if (album.geoClusterKey && album.geoClusterKey.trim()) {
-    return album.geoClusterKey;
-  }
-
   const country = normalizePart(album.countryCode) || "xx";
-  if (album.geoGranularity === "country") {
+  const effectiveGranularity = resolveEffectiveGranularity({
+    cityName: album.cityName,
+    regionCode: album.regionCode,
+    countryCode: album.countryCode,
+    countryName: album.countryName,
+  });
+
+  if (effectiveGranularity === "country") {
     return country;
   }
 
   const region = normalizePart(sanitizeGeoLabel(album.regionCode));
-  if (album.geoGranularity === "region") {
+  if (effectiveGranularity === "region") {
     return region ? [country, region].join(":") : country;
   }
 
-  const city = normalizePart(sanitizeGeoLabel(album.cityName));
+  const city = hasMeaningfulCity({
+    cityName: album.cityName,
+    countryCode: album.countryCode,
+    countryName: album.countryName,
+  })
+    ? normalizePart(sanitizeGeoLabel(album.cityName))
+    : "";
 
   if (city) {
     return [country, region || "na", city].join(":");
@@ -89,14 +138,79 @@ function scatterCountryLevelCoordinates(lng: number, lat: number, seed: string) 
   };
 }
 
+function scatterClusterLevelCoordinates(
+  lng: number,
+  lat: number,
+  clusterSeed: string,
+  itemSeed: string,
+  options: { baseMin: number; baseMax: number; microMin: number; microMax: number }
+) {
+  const clusterHash = hashString(clusterSeed);
+  const clusterAngle = ((clusterHash % 360) * Math.PI) / 180;
+  const clusterRadius =
+    options.baseMin + ((clusterHash >>> 9) % Math.round((options.baseMax - options.baseMin) * 100 + 1)) / 100;
+
+  const itemHash = hashString(itemSeed);
+  const itemAngle = ((itemHash % 360) * Math.PI) / 180;
+  const itemRadius =
+    options.microMin + ((itemHash >>> 8) % Math.round((options.microMax - options.microMin) * 100 + 1)) / 100;
+
+  const deltaLng =
+    Math.cos(clusterAngle) * clusterRadius + Math.cos(itemAngle) * itemRadius;
+  const deltaLat =
+    (Math.sin(clusterAngle) * clusterRadius + Math.sin(itemAngle) * itemRadius) * 0.6;
+
+  return {
+    lng: clampLng(lng + deltaLng),
+    lat: clampLat(lat + deltaLat),
+  };
+}
+
+function clampLng(value: number) {
+  return value > 180 ? 180 : value < -180 ? -180 : value;
+}
+
+function clampLat(value: number) {
+  return value > 85 ? 85 : value < -85 ? -85 : value;
+}
+
+function isNearCountryCentroid(
+  lng: number,
+  lat: number,
+  countryCode: string,
+  countryName: string
+) {
+  const centroid = getCountryCoordinates(countryCode, countryName);
+  if (!centroid) return false;
+  return Math.abs(lng - centroid.lng) <= 0.35 && Math.abs(lat - centroid.lat) <= 0.35;
+}
+
 function mapRow(row: DiscoveryPoolRow): DiscoveryAlbum & { weight?: number } {
   const countryCode = row.country_code?.toUpperCase?.() ?? "XX";
   const sanitizedCityName = sanitizeGeoLabel(row.city_name);
   const sanitizedRegionCode = sanitizeGeoLabel(row.region_code);
   const sanitizedRegionName = sanitizeGeoLabel(row.region_name);
-  const geoGranularity =
-    row.geo_granularity ??
-    (sanitizedCityName ? "city" : sanitizedRegionCode ? "region" : "country");
+  const inferredRegion =
+    !sanitizedRegionCode && sanitizedCityName
+      ? inferRegionFromCountryAndCity(countryCode, sanitizedCityName)
+      : null;
+  const effectiveRegionCode = sanitizedRegionCode ?? inferredRegion?.regionCode ?? null;
+  const effectiveRegionName = sanitizedRegionName ?? inferredRegion?.regionName ?? null;
+  const geoGranularity = resolveEffectiveGranularity({
+    cityName: sanitizedCityName,
+    regionCode: effectiveRegionCode,
+    countryCode,
+    countryName: row.country_name,
+  });
+
+  const cityForDisplay = sanitizedCityName ?? row.country_name ?? countryCode;
+  const clusterKey = computeClusterKey({
+    countryCode,
+    countryName: row.country_name,
+    cityName: cityForDisplay,
+    regionCode: effectiveRegionCode,
+    geoGranularity,
+  });
 
   let lng = row.lng;
   let lat = row.lat;
@@ -109,6 +223,20 @@ function mapRow(row: DiscoveryPoolRow): DiscoveryAlbum & { weight?: number } {
     );
     lng = scattered.lng;
     lat = scattered.lat;
+  } else if (isNearCountryCentroid(row.lng, row.lat, countryCode, row.country_name)) {
+    const scatterOptions =
+      geoGranularity === "city"
+        ? { baseMin: 2.4, baseMax: 6.8, microMin: 0.2, microMax: 1.1 }
+        : { baseMin: 1.8, baseMax: 4.9, microMin: 0.15, microMax: 0.8 };
+    const scattered = scatterClusterLevelCoordinates(
+      row.lng,
+      row.lat,
+      clusterKey,
+      `${clusterKey}:${row.id}`,
+      scatterOptions
+    );
+    lng = scattered.lng;
+    lat = scattered.lat;
   }
 
   return {
@@ -118,11 +246,11 @@ function mapRow(row: DiscoveryPoolRow): DiscoveryAlbum & { weight?: number } {
     releaseYear: row.release_year,
     countryCode,
     countryName: row.country_name,
-    cityName: sanitizedCityName ?? row.country_name ?? countryCode,
-    regionCode: sanitizedRegionCode,
-    regionName: sanitizedRegionName,
+    cityName: cityForDisplay,
+    regionCode: effectiveRegionCode,
+    regionName: effectiveRegionName,
     geoGranularity,
-    geoClusterKey: row.geo_cluster_key ?? undefined,
+    geoClusterKey: clusterKey,
     coordinates: {
       lng,
       lat,
