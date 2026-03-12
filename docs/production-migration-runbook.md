@@ -273,6 +273,58 @@ docker compose up -d --build
 curl -fsS http://127.0.0.1:3000/api/discovery | head
 ```
 
+## 12. 常见故障：Docker 构建阶段 `next build` 被 `SIGKILL`
+
+现象：
+
+- 日志出现 `npm error signal SIGKILL`，通常发生在 `RUN npm run build`。
+
+根因：
+
+- 服务器内存不足，构建进程被 OOM Killer 杀掉。
+
+处理顺序（按优先级）：
+
+1. 直接使用已调整的 Dockerfile 重新构建
+- 已启用：`NEXT_TELEMETRY_DISABLED=1`、`NODE_OPTIONS=--max-old-space-size=1536`、`next build --webpack`。
+
+2. 构建前关闭其他大内存进程
+
+```bash
+docker ps
+docker stop <不相关容器ID>
+```
+
+3. 增加 2G swap（小内存机强烈建议）
+
+```bash
+sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+free -h
+```
+
+4. 重新构建并观察日志
+
+```bash
+cd /srv/dream
+docker compose build --no-cache app
+docker compose up -d
+docker compose logs app --tail=200
+```
+
+5. 如仍失败，进一步降低并发与峰值内存
+- 在宿主机先构建一次：`npm ci && npm run build -- --webpack`，确认机器本身可构建。
+- 或升级服务器规格（推荐 >= 2 vCPU / 4GB RAM）。
+
+辅助诊断命令：
+
+```bash
+free -h
+dmesg -T | grep -Ei 'killed process|out of memory|oom'
+```
+
 ---
 
 如需零停机级别迁移，SQLite 本身不适合复杂双写/双活方案；届时建议评估迁移到网络型数据库（如 Postgres）并配套在线变更流程。
