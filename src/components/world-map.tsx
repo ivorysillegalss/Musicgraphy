@@ -89,6 +89,11 @@ function albumArtistKey(albumTitle: string, artistName: string) {
   return `${normalizeCompareValue(albumTitle)}::${normalizeCompareValue(artistName)}`;
 }
 
+function isSameAlbumSelection(a: DiscoveryAlbum, b: DiscoveryAlbum) {
+  if (a.id && b.id && a.id === b.id) return true;
+  return albumArtistKey(a.albumTitle, a.artistName) === albumArtistKey(b.albumTitle, b.artistName);
+}
+
 function albumTitleKey(albumTitle: string) {
   return normalizeCompareValue(albumTitle);
 }
@@ -1208,6 +1213,26 @@ export function WorldMap({
     );
   }, [userRecords, selectedDiscovery]);
 
+  function toggleDiscoverySelection(album: DiscoveryAlbum, focus = true) {
+    let shouldOpen = false;
+    setSelectedDiscovery((prev) => {
+      const same = prev ? isSameAlbumSelection(prev, album) : false;
+      shouldOpen = !same;
+      return same ? null : album;
+    });
+    setSelectedUserRecordId(null);
+
+    if (focus && shouldOpen && album.coordinates) {
+      setViewCenter([album.coordinates.lng, album.coordinates.lat]);
+      setZoom((prev) => Math.max(prev, 2.6));
+    }
+  }
+
+  function toggleUserRecordSelection(recordId: string) {
+    setSelectedDiscovery(null);
+    setSelectedUserRecordId((prev) => (prev === recordId ? null : recordId));
+  }
+
   return (
     <div className="relative w-full h-full">
       <div className="absolute left-6 top-24 z-10 flex flex-col gap-2 pointer-events-none">
@@ -1495,19 +1520,13 @@ export function WorldMap({
           setIsSearchOpen(false);
           setSearchArtist("");
           setSearchAlbum("");
-          setSelectedDiscovery(album);
-          setSelectedUserRecordId(null);
-          if (album.coordinates && typeof album.coordinates.lng === 'number' && typeof album.coordinates.lat === 'number') {
-            setViewCenter([album.coordinates.lng, album.coordinates.lat]);
-            setZoom(6);
-          }
+          toggleDiscoverySelection(album, true);
         }}
         onSelectUserRecord={(record) => {
           setIsSearchOpen(false);
           setSearchArtist("");
           setSearchAlbum("");
-          setSelectedUserRecordId(record.id);
-          setSelectedDiscovery(null);
+          toggleUserRecordSelection(record.id);
           
           // Handle both possible coordinate structures
           const lng = record.artistGeo.coordinates?.lng;
@@ -1559,12 +1578,7 @@ export function WorldMap({
                       size={discoveryMarkerSize}
                       isSelected={selectedDiscovery?.id === marker.id}
                       onClick={() => {
-                        setSelectedUserRecordId(null);
-                        setSelectedDiscovery(album);
-                        if (album) {
-                          setViewCenter([album.coordinates.lng, album.coordinates.lat]);
-                          setZoom((prev) => Math.max(prev, 2.6));
-                        }
+                        toggleDiscoverySelection(album, true);
                       }}
                     />
                 </div>
@@ -1589,8 +1603,7 @@ export function WorldMap({
                     }}
                     size={userMarkerSize}
                     onClick={() => {
-                      setSelectedDiscovery(null);
-                      setSelectedUserRecordId(marker.props.id);
+                      toggleUserRecordSelection(marker.props.id);
                     }}
                   />
               </div>
@@ -1610,12 +1623,9 @@ export function WorldMap({
                   <AlbumMarker
                     data={marker.album}
                     size={discoveryMarkerSize}
-                    isSelected={selectedDiscovery?.id === marker.favoriteId}
+                    isSelected={selectedDiscovery ? isSameAlbumSelection(selectedDiscovery, marker.album) : false}
                     onClick={() => {
-                      setSelectedUserRecordId(null);
-                      setSelectedDiscovery(marker.album);
-                      setViewCenter([marker.album.coordinates.lng, marker.album.coordinates.lat]);
-                      setZoom((prev) => Math.max(prev, 2.6));
+                      toggleDiscoverySelection(marker.album, true);
                     }}
                   />
                   <span className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-pink-500/90 px-1 text-[10px] font-bold text-white">
@@ -1704,7 +1714,7 @@ export function WorldMap({
               <p className="font-bold text-emerald-400">{selectedUserRecord.albumTitle}</p>
               <p className="text-zinc-400 text-xs uppercase tracking-wider">{selectedUserRecord.artistGeo.artistName}</p>
               <p className="text-zinc-500 text-xs mt-1">
-                 评分 <span className="text-emerald-300 font-mono">{selectedUserRecord.score}</span> · {getRecordYear(selectedUserRecord)}
+                  {getRecordYear(selectedUserRecord)}
               </p>
             </div>
           </div>

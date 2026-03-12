@@ -49,8 +49,8 @@ function createLocalRecordFromAlbum(album: DiscoveryAlbum): UserRecord {
     releaseDate: album.releaseYear ? `${album.releaseYear}-01-01` : null,
     releaseYear: album.releaseYear,
     listenAt: new Date().toISOString(),
-    score: 7,
-    personalTags: ["local-test", "map-mark"],
+    score: 0,
+    personalTags: [],
     artistGeo: {
       artistId: `local-${album.artistName.toLowerCase().replaceAll(" ", "-")}`,
       artistName: album.artistName,

@@ -104,8 +104,8 @@ export async function POST(request: Request) {
         cityName: body.cityName,
       },
       listenAt: nowIso,
-      score: 7,
-      personalTags: ["map-mark", "homepage"],
+      score: 0,
+      personalTags: [],
       coordinatesOverride: body.coordinates,
     });
 
