@@ -99,6 +99,49 @@ function albumTitleKey(albumTitle: string) {
   return normalizeCompareValue(albumTitle);
 }
 
+function artistNameKey(artistName: string) {
+  return normalizeCompareValue(artistName);
+}
+
+function pickOneAlbumPerArtist(
+  albums: DiscoveryAlbum[],
+  seed: string,
+  selectedDiscovery: DiscoveryAlbum | null
+) {
+  const groups = new Map<string, DiscoveryAlbum[]>();
+
+  for (const album of albums) {
+    const key = artistNameKey(album.artistName);
+    const list = groups.get(key) ?? [];
+    list.push(album);
+    groups.set(key, list);
+  }
+
+  const picked: DiscoveryAlbum[] = [];
+  for (const [artistKey, list] of groups.entries()) {
+    if (list.length === 0) continue;
+
+    if (selectedDiscovery && artistNameKey(selectedDiscovery.artistName) === artistKey) {
+      const selectedInGroup = list.find((album) => isSameAlbumSelection(album, selectedDiscovery));
+      if (selectedInGroup) {
+        picked.push(selectedInGroup);
+        continue;
+      }
+    }
+
+    const sorted = [...list].sort((a, b) => {
+      const byTitle = a.albumTitle.localeCompare(b.albumTitle);
+      if (byTitle !== 0) return byTitle;
+      return a.id.localeCompare(b.id);
+    });
+
+    const index = hashStringToInt(`${seed}:${artistKey}`) % sorted.length;
+    picked.push(sorted[index]);
+  }
+
+  return picked;
+}
+
 function normalizeClusterPart(value: string | null | undefined) {
   if (!value) return "";
   return value
@@ -944,7 +987,13 @@ export function WorldMap({
       return !heardTitleKeySet.has(albumTitleKey(album.albumTitle));
     });
 
-    return filteredDiscovery
+    const artistDedupedDiscovery = pickOneAlbumPerArtist(
+      filteredDiscovery,
+      `${refreshNonce}:${refreshSalt}`,
+      selectedDiscovery
+    );
+
+    return artistDedupedDiscovery
       .map((album) => {
         if (
           typeof album.coordinates?.lng !== "number" ||
@@ -975,6 +1024,8 @@ export function WorldMap({
     layerVisibility.roam,
     layerVisibility.heard,
     layerVisibility.favorites,
+    refreshNonce,
+    refreshSalt,
     selectedDiscovery,
   ]);
 
