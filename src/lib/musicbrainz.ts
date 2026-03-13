@@ -18,6 +18,9 @@ type MusicBrainzRelease = {
 };
 
 type MusicBrainzReleaseResponse = {
+  count?: number;
+  offset?: number;
+  "release-count"?: number;
   releases?: MusicBrainzRelease[];
 };
 
@@ -188,6 +191,86 @@ function mapReleaseResponse(response: MusicBrainzReleaseResponse | null) {
     .filter((r) => r.artist !== null);
 }
 
+function normalizeExactTerm(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isExactArtistAndReleaseMatch(
+  item: { title: string; artist: { id: string; name: string } | null },
+  artist: string,
+  release: string
+) {
+  if (!item.artist) return false;
+  return (
+    normalizeExactTerm(item.artist.name) === normalizeExactTerm(artist) &&
+    normalizeExactTerm(item.title) === normalizeExactTerm(release)
+  );
+}
+
+function isExactArtistMatch(
+  item: { artist: { id: string; name: string } | null },
+  artist: string
+) {
+  if (!item.artist) return false;
+  return normalizeExactTerm(item.artist.name) === normalizeExactTerm(artist);
+}
+
+function isExactReleaseMatch(item: { title: string }, release: string) {
+  return normalizeExactTerm(item.title) === normalizeExactTerm(release);
+}
+
+async function fetchAllExactReleaseMatches(
+  params: { artist?: string | null; release?: string | null },
+  authToken?: string | null
+) {
+  const artist = sanitizeTerm(params.artist);
+  const release = sanitizeTerm(params.release);
+  if (!artist && !release) return [] as ReturnType<typeof mapReleaseResponse>;
+
+  let exactQuery = "";
+  let matcher: (item: ReturnType<typeof mapReleaseResponse>[number]) => boolean;
+
+  if (artist && release) {
+    exactQuery = `artist:"${artist}" AND release:"${release}"`;
+    matcher = (item) => isExactArtistAndReleaseMatch(item, artist, release);
+  } else if (artist) {
+    exactQuery = `artist:"${artist}"`;
+    matcher = (item) => isExactArtistMatch(item, artist);
+  } else {
+    exactQuery = `release:"${release}"`;
+    matcher = (item) => isExactReleaseMatch(item, release as string);
+  }
+
+  const pageSize = 100;
+  const encoded = encodeURIComponent(exactQuery);
+  const collected: ReturnType<typeof mapReleaseResponse> = [];
+  const seenReleaseIds = new Set<string>();
+  let offset = 0;
+  let total = Number.POSITIVE_INFINITY;
+
+  while (offset < total) {
+    const path = `/release?query=${encoded}&fmt=json&limit=${pageSize}&offset=${offset}&inc=artist-credits+tags+genres`;
+    const response = await fetchMusicBrainz<MusicBrainzReleaseResponse>(path, authToken);
+    const mapped = mapReleaseResponse(response);
+
+    for (const item of mapped) {
+      if (!matcher(item)) continue;
+      if (seenReleaseIds.has(item.id)) continue;
+      seenReleaseIds.add(item.id);
+      collected.push(item);
+    }
+
+    const responseCount = response["release-count"] ?? response.count ?? 0;
+    total = Number.isFinite(responseCount) ? Math.max(0, responseCount) : 0;
+    const pageLength = response.releases?.length ?? 0;
+
+    if (pageLength === 0) break;
+    offset += pageLength;
+  }
+
+  return collected;
+}
+
 export async function searchReleasesByFields(
   params: ReleaseSearchParams,
   limit = 10,
@@ -197,9 +280,20 @@ export async function searchReleasesByFields(
   const release = sanitizeTerm(params.release);
   const fallback = sanitizeTerm(params.fallbackQuery);
 
+  // Exact-first strategy:
+  // 1) artist + release => return all exact matches for both fields
+  // 2) artist-only/release-only => return all exact matches for that field
+  // 3) if exact is empty, fallback to fuzzy MB query variants
+  if (artist || release) {
+    const exactMatches = await fetchAllExactReleaseMatches({ artist, release }, authToken);
+    if (exactMatches.length > 0) {
+      return exactMatches;
+    }
+  }
+
   // Prioritized query variants
   const queries: string[] = [];
-  if (artist && release) queries.push(`artist:"${artist}" AND release:"${release}"`);
+  if (artist && release) queries.push(`${artist} ${release}`);
   if (release) queries.push(`release:"${release}"`);
   if (artist) queries.push(`artist:"${artist}"`);
   if (fallback) queries.push(fallback);

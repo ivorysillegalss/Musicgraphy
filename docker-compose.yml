@@ -1,6 +1,9 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_FORCE_DEFAULT_AUTH: ${NEXT_PUBLIC_FORCE_DEFAULT_AUTH:-false}
     ports:
       - "3000:3000"
     environment:
@@ -8,6 +11,7 @@ services:
       NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL: local@localhost
       NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID: local-user
       DISCOVERY_ADMIN_EMAILS: local@localhost
+      NEXT_PUBLIC_FORCE_DEFAULT_AUTH: ${NEXT_PUBLIC_FORCE_DEFAULT_AUTH:-false}
       MUSIC_APP_NAME: personal-music-geography
       MUSIC_APP_VERSION: 0.1.0
       MUSIC_APP_CONTACT: local-dev

@@ -3,6 +3,7 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS=--max-old-space-size=1536
 
+ARG NEXT_PUBLIC_FORCE_DEFAULT_AUTH
 COPY package.json package-lock.json ./
 RUN npm ci
 
