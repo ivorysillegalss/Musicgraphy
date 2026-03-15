@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
 import type { UserRecord } from "@/lib/types";
 import { AlbumArtImage } from "@/components/ui/album-art-image";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type SearchResult =
   | { type: "user"; data: UserRecord }
@@ -53,6 +54,7 @@ export function SearchOverlay({
   onSelectDiscovery,
   onSelectUserRecord,
 }: SearchOverlayProps) {
+  const { t, language } = useLanguage();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Map<string, { ts: number; results: Array<DiscoveryAlbum & { source?: string; tags?: string[] }>; meta: SearchApiMeta }>>(new Map());
@@ -250,14 +252,14 @@ export function SearchOverlay({
                     type="text"
                     value={artistQuery}
                     onChange={(e) => onArtistQueryChange(e.target.value)}
-                    placeholder="艺人or乐队"
+                    placeholder={t.search.artistOrBand}
                     className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 focus:border-purple-400 focus:bg-purple-900/10 transition-colors rounded-lg font-mono"
                   />
                   <input
                     type="text"
                     value={albumQuery}
                     onChange={(e) => onAlbumQueryChange(e.target.value)}
-                    placeholder="专辑名称"
+                    placeholder={t.search.albumName}
                     className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 focus:border-purple-400 focus:bg-purple-900/10 transition-colors rounded-lg font-mono"
                   />
                 </div>
@@ -276,7 +278,7 @@ export function SearchOverlay({
                   className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors"
                   title="关闭"
                 >
-                  <span className="text-xs font-semibold">ESC</span>
+                  <span className="text-xs font-semibold">{t.search.escToClose.split(" ")[0]}</span>
                 </button>
               </div>
             </div>
@@ -285,7 +287,7 @@ export function SearchOverlay({
               <div className="flex flex-wrap gap-2 rounded-lg bg-zinc-900/80 border border-white/10 p-2 text-xs text-zinc-300">
                 {availableTags.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-zinc-500 mr-1">标签:</span>
+                    <span className="text-zinc-500 mr-1">{t.search.tags}</span>
                     {availableTags.map((tag) => {
                       const active = selectedTags.includes(tag);
                       return (
@@ -311,13 +313,13 @@ export function SearchOverlay({
 
                 {decadeOptions.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="text-zinc-500">年代:</span>
+                    <span className="text-zinc-500">{t.search.decade}</span>
                     <select
                       value={decadeFilter}
                       onChange={(e) => setDecadeFilter(e.target.value)}
                       className="bg-zinc-800 border border-white/10 text-xs rounded px-2 py-1"
                     >
-                      <option value="">全部</option>
+                      <option value="">{t.controls.allYears}</option>
                       {decadeOptions.map((d) => (
                         <option key={d} value={d}>{d}s</option>
                       ))}
@@ -326,7 +328,7 @@ export function SearchOverlay({
                 )}
 
                 <div className="flex items-center gap-2 flex-1 min-w-[140px]">
-                  <span className="text-zinc-500">地区:</span>
+                  <span className="text-zinc-500">{t.search.region}</span>
                   <input
                     value={areaFilter}
                     onChange={(e) => setAreaFilter(e.target.value)}
@@ -342,36 +344,36 @@ export function SearchOverlay({
                 {searchMeta.shouldOfferExternalSearch && !useExternalSearch && (
                   <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
                     <p className="text-xs text-amber-200 mb-2">
-                      本地结果较少且非精确匹配，可以选择调用第三方搜索补充。
+                      {t.search.externalHelp}
                     </p>
                     <button
                       onClick={() => setUseExternalSearch(true)}
                       className="rounded-md bg-amber-500/20 px-2 py-1 text-xs text-amber-100 hover:bg-amber-500/30 transition-colors"
                     >
-                      调用第三方搜索
+                      {t.search.externalSearch}
                     </button>
                   </div>
                 )}
 
                 {searchMeta.externalSuppressedByCooldown ? (
                   <div className="mb-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-xs text-zinc-300">
-                    第三方搜索冷却中，请稍后再试。
+                    {t.search.cooldown}
                   </div>
                 ) : null}
 
                 {searchMeta.externalError ? (
                   <div className="mb-2 rounded-lg border border-red-700/40 bg-red-950/30 p-2 text-xs text-red-200">
-                    第三方搜索失败: {searchMeta.externalError}
+                    {language === 'en' ? 'External search failed: ' : '第三方搜索失败: '}{searchMeta.externalError}
                   </div>
                 ) : null}
 
                 {isSearching ? (
                   <div className="p-4 text-center text-sm text-zinc-500">
-                    搜索中...
+                    {t.search.searching}
                   </div>
                 ) : totalResults === 0 ? (
                   <div className="p-4 text-center text-sm text-zinc-500">
-                    未找到相关结果
+                    {t.search.notFound}
                   </div>
                 ) : (
                   <>
@@ -431,7 +433,7 @@ export function SearchOverlay({
                                 </div>
                               </div>
                               <div className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-500/20 text-zinc-400 flex-shrink-0">
-                                {album.id.startsWith('mb-') ? 'MusicBrainz' : '发现'}
+                                {album.id.startsWith('mb-') ? 'MusicBrainz' : language === 'en' ? 'Discovery' : '发现'}
                               </div>
                             </button>
                           );

@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import * as Slider from '@radix-ui/react-slider';
 import { useState } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type BottomControlsProps = {
   timelineRange: { min: number; max: number };
@@ -21,6 +22,7 @@ export function BottomControls({
   recordsCount,
   yearSummary,
 }: BottomControlsProps) {
+  const { t } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -84,10 +86,10 @@ export function BottomControls({
                   <div className="flex gap-4 text-xs font-medium text-zinc-400 hidden md:flex whitespace-nowrap">
                     <span className="flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                      {recordsCount} Records
+                      {recordsCount} {t.controls.records}
                     </span>
                     <span>•</span>
-                    <span>{yearSummary}</span>
+                    <span>{yearSummary?.replace("No records", t.library.emptyHistory)}</span>
                   </div>
                 </div>
                 <button 

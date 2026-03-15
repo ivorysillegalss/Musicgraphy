@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Key } from "lucide-react";
+import { User, Key, Globe } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type AppNavbarProps = {
   userEmail?: string;
@@ -22,6 +23,8 @@ export function AppNavbar({
   onSignOut,
   onAuthClick,
 }: AppNavbarProps) {
+  const { language, setLanguage, t } = useLanguage();
+
   return (
     <motion.header
       initial={{ y: -100 }}
@@ -39,9 +42,9 @@ export function AppNavbar({
           </div>
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Music Geography</h1>
+          <h1 className="text-xl font-bold text-white tracking-tight">{t.navbar.title}</h1>
           <p className="text-xs text-zinc-400 font-medium tracking-wide uppercase">
-            Personal Discovery Timeline
+            {t.navbar.subtitle}
           </p>
         </div>
       </div>
@@ -49,10 +52,19 @@ export function AppNavbar({
       {/* Right Actions */}
       <div className="relative z-10 flex items-center gap-3">
         <button
+          onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+          className="flex items-center justify-center p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors border border-white/10 text-zinc-300"
+          title={language === 'en' ? '切换到中文' : 'Switch to English'}
+        >
+          <Globe size={18} />
+          <span className="ml-1.5 text-xs font-semibold">{language === 'en' ? 'EN' : '中'}</span>
+        </button>
+
+        <button
           onClick={onOpenGuide}
           className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors backdrop-blur-md border border-white/5"
         >
-          Guide & Info
+          {t.navbar.guide}
         </button>
 
         {userEmail && onOpenMbTokens && (
@@ -70,7 +82,7 @@ export function AppNavbar({
             onClick={onOpenManage}
             className="rounded-full bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-lg hover:bg-cyan-500/30 transition-colors border border-cyan-400/30"
           >
-            Manage Geo
+            {t.navbar.manageGeo}
           </button>
         )}
 
@@ -81,7 +93,7 @@ export function AppNavbar({
               onClick={onSignOut}
               className="rounded-full bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
             >
-              Sign Out
+              {t.navbar.signOut}
             </button>
           </div>
         ) : (
@@ -90,7 +102,7 @@ export function AppNavbar({
             className="group flex items-center gap-2 rounded-full bg-white text-black px-5 py-2.5 text-sm font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
           >
             <User size={16} />
-            <span>{isLocalMode ? "Local Mode" : "Sign In"}</span>
+            <span>{isLocalMode ? t.navbar.localMode : t.navbar.signIn}</span>
           </button>
         )}
       </div>

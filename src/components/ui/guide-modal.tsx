@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MapPin, Music2, Globe, Calendar } from "lucide-react";
+import { X, Users, Music2, Globe, Calendar } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type GuideModalProps = {
   isOpen: boolean;
@@ -10,6 +11,8 @@ type GuideModalProps = {
 };
 
 export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
+  const { t } = useLanguage();
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -27,7 +30,7 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
           >
             <div className="relative border-b border-white/5 bg-white/5 p-6 backdrop-blur-md">
               <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
-                Welcome to Music Geography
+                {t.guide.welcome}
               </h2>
               <button 
                 onClick={onClose}
@@ -46,10 +49,9 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
                          <Globe size={24} />
                        </div>
                        <div>
-                         <h3 className="font-semibold text-zinc-100">Explorer Map</h3>
+                         <h3 className="font-semibold text-zinc-100">{t.guide.explorerTitle}</h3>
                          <p className="text-sm text-zinc-400 mt-1">
-                           Zoom into any region to discover random representative albums. 
-                           Click markers to listen or collect.
+                           {t.guide.explorerDesc}
                          </p>
                        </div>
                     </div>
@@ -59,9 +61,9 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
                          <Music2 size={24} />
                        </div>
                        <div>
-                         <h3 className="font-semibold text-zinc-100">Personal Tracks</h3>
+                         <h3 className="font-semibold text-zinc-100">{t.guide.personalTitle}</h3>
                          <p className="text-sm text-zinc-400 mt-1">
-                           Mark albums as &quot;Heard&quot; (Green dots). Your history is visualized directly on the same map layer.
+                           {t.guide.personalDesc}
                          </p>
                        </div>
                     </div>
@@ -73,21 +75,21 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
                          <Calendar size={24} />
                        </div>
                        <div>
-                         <h3 className="font-semibold text-zinc-100">Time Travel</h3>
+                         <h3 className="font-semibold text-zinc-100">{t.guide.timeTitle}</h3>
                          <p className="text-sm text-zinc-400 mt-1">
-                           Filter both discovery and personal layers by release year (1960-2026).
+                           {t.guide.timeDesc}
                          </p>
                        </div>
                     </div>
 
                     <div className="flex items-start gap-3">
                        <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-                         <MapPin size={24} />
+                         <Users size={24} />
                        </div>
                        <div>
-                         <h3 className="font-semibold text-zinc-100">Local Rendering</h3>
+                         <h3 className="font-semibold text-zinc-100">{t.guide.localTitle}</h3>
                          <p className="text-sm text-zinc-400 mt-1">
-                           High-performance vectors. No external map APIs required. Private & fast.
+                           {t.guide.localDesc}
                          </p>
                        </div>
                     </div>
@@ -98,7 +100,7 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
               <div className="rounded-xl bg-black/30 p-4 border border-white/5 flex items-center justify-between text-xs text-zinc-500">
                  <div className="flex items-center gap-2">
                    <div className={`h-2 w-2 rounded-full ${isConfigured ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-500"}`} />
-                   <span>Backend Status: {isConfigured ? "Local SQLite Ready" : "Not Configured"}</span>
+                   <span>{t.guide.status}: {isConfigured ? t.guide.ready : t.guide.notConfigured}</span>
                  </div>
                  <div className="text-right">
                    v1.0.0

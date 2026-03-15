@@ -6,6 +6,7 @@ import { X, Heart, History, Trash2, Filter } from "lucide-react";
 import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
 import type { UserRecord } from "@/lib/types";
 import { AlbumArtImage } from "@/components/ui/album-art-image";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const INVALID_TAG_SUBSTRINGS = ["map", "mark", "homepage", "home", "page", "mapmark", "map-marker"];
 
@@ -90,6 +91,7 @@ export function LibraryDrawer({
   onLocateFavorite,
   onLocateRecord
 }: LibraryDrawerProps) {
+  const { t } = useLanguage();
   const [tagFilter, setTagFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
 
@@ -146,7 +148,7 @@ export function LibraryDrawer({
           >
             <div className="flex items-center justify-between p-6 border-b border-white/5">
               <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
-                Your Library
+                {t.library.title}
               </h2>
               <button 
                 onClick={onClose}
@@ -179,10 +181,10 @@ export function LibraryDrawer({
               <section>
                 <div className="flex items-center gap-2 mb-4 text-pink-400">
                   <Heart size={18} />
-                  <h3 className="font-semibold text-sm uppercase tracking-wider">Favorites ({favorites.length})</h3>
+                  <h3 className="font-semibold text-sm uppercase tracking-wider">{t.library.favorites} ({favorites.length})</h3>
                 </div>
                 {filteredFavorites.length === 0 ? (
-                  <p className="text-sm text-zinc-500 italic">No favorites yet. Explore the map!</p>
+                  <p className="text-sm text-zinc-500 italic">{t.library.emptyFavorites}</p>
                 ) : (
                   <div className="grid gap-3">
                     {filteredFavorites.map(album => (
@@ -240,10 +242,10 @@ export function LibraryDrawer({
               <section>
                 <div className="flex items-center gap-2 mb-4 text-emerald-400">
                   <History size={18} />
-                  <h3 className="font-semibold text-sm uppercase tracking-wider">Listening History ({filteredRecords.length})</h3>
+                  <h3 className="font-semibold text-sm uppercase tracking-wider">{t.library.history} ({filteredRecords.length})</h3>
                 </div>
                 {filteredRecords.length === 0 ? (
-                  <p className="text-sm text-zinc-500 italic">No history yet. Start marking albums!</p>
+                  <p className="text-sm text-zinc-500 italic">{t.library.emptyHistory}</p>
                 ) : (
                   <div className="grid gap-3">
                     {filteredRecords.slice(0, 20).map(record => (

@@ -12,7 +12,7 @@ type OnboardingTourProps = {
 const TOUR_STEPS = [
   {
     id: "map",
-    title: "漫游音乐地理",
+    title: "漫游乐图",
     description: "拖拽和缩放世界地图，在不同国家和城市之间探索随机掉落的精选专辑。地图就是你的音乐发现池。",
     icon: Map,
     color: "from-blue-400 to-cyan-400",
