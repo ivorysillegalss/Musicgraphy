@@ -157,15 +157,31 @@ export async function GET(request: Request) {
     const user = await getLocalAuthUser(request);
     requireAdmin(user.email);
 
-    const data = await dbAll<DiscoveryPoolRow>(
-      `select
+    const url = new URL(request.url);
+    const q = url.searchParams.get("q")?.trim().toLowerCase() || "";
+
+    let querySql = `select
         id, album_title, artist_name, release_year, country_code, country_name,
         city_name, region_code, region_name, geo_granularity, geo_cluster_key,
         lng, lat, enabled, weight, created_at
-       from discovery_pool
-       order by created_at desc
-       limit 1000`
-    );
+       from discovery_pool`;
+       
+    let args: any[] = [];
+
+    if (q) {
+      querySql += ` where lower(album_title) like ? 
+                       or lower(artist_name) like ? 
+                       or lower(country_code) like ? 
+                       or lower(country_name) like ? 
+                       or lower(city_name) like ? 
+                       or lower(geo_cluster_key) like ?`;
+      const likeStr = `%${q}%`;
+      args = [likeStr, likeStr, likeStr, likeStr, likeStr, likeStr];
+    }
+
+    querySql += ` order by created_at desc limit 100`;
+
+    const data = await dbAll<DiscoveryPoolRow>(querySql, args);
 
     return NextResponse.json({ items: data.map(toItem) }, { status: 200 });
   } catch (error) {

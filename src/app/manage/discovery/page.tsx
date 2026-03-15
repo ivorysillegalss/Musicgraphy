@@ -67,7 +67,7 @@ export default function DiscoveryManagePage() {
   const [items, setItems] = useState<ManageItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -85,13 +85,18 @@ export default function DiscoveryManagePage() {
   }
 
   const loadItems = useCallback(async () => {
+    if (!query.trim()) {
+      setItems([]);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setNotice(null);
 
     try {
       const authHeaders = await getAuthHeaders();
-      const res = await fetch("/api/discovery/manage", {
+      const res = await fetch(`/api/discovery/manage?q=${encodeURIComponent(query.trim())}`, {
         headers: authHeaders,
       });
       const data = (await res.json()) as { items?: ManageItem[]; error?: { message?: string } };
@@ -111,34 +116,11 @@ export default function DiscoveryManagePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
-  useEffect(() => {
-    void loadItems();
-  }, [loadItems]);
-
-  const filteredItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return items;
-    }
-
-    return items.filter((item) => {
-      const text = [
-        item.album_title,
-        item.artist_name,
-        item.country_code,
-        item.country_name,
-        item.city_name,
-        item.region_code ?? "",
-        item.region_name ?? "",
-        item.geo_cluster_key ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return text.includes(q);
-    });
-  }, [items, query]);
+  // Removed useEffect on mount fetch to avoid initial data load
+  
+  const filteredItems = items; // Items are already filtered from API
 
   function updateDraft(id: string, next: Partial<Draft>) {
     setDrafts((prev) => ({
@@ -254,6 +236,9 @@ export default function DiscoveryManagePage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void loadItems();
+              }}
               placeholder="Search album / artist / country / region / cluster"
               className="w-full max-w-xl rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:border-cyan-500"
             />
@@ -262,7 +247,7 @@ export default function DiscoveryManagePage() {
               className="rounded-md border border-neutral-700 px-3 py-2 text-sm hover:bg-neutral-800"
               type="button"
             >
-              Refresh
+              Search
             </button>
           </div>
           {loading ? <p className="mt-2 text-sm text-neutral-400">Loading...</p> : null}
