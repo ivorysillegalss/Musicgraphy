@@ -10,7 +10,7 @@
   - 首页世界地图底图渲染
   - 地图缩放/平移与点位交互
 - 说明：
-  - 当前使用本地 `d3-geo + topojson + world-atlas`，无需第三方地图 API Key。
+  - 当前使用本地 `d3-geo + topojson` + 仓库内 `public/world-110m.json`，无需第三方地图 API Key。
 
 ### 1.2 本地数据库（必需）
 - 用途：
@@ -19,6 +19,7 @@
   - 发现池数据管理
 - 对应环境变量：
   - `LOCAL_DB_PATH`（默认 `./data/dream.db`）
+  - `COVER_CACHE_DIR`（默认 `./data/covers`）
   - `NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID`
   - `NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL`
   - `LOCAL_DEFAULT_USER_ID`
@@ -87,6 +88,16 @@ docker compose up --build
 说明：
 - 持久化数据位于宿主机 `./data`
 - 容器内数据库路径默认为 `/app/data/dream.db`
+- 专辑封面缓存目录挂载为 `./data/covers -> /app/public/covers`
+
+#### 通过复制 `dream.db` 迁移
+
+1) 停止容器：`docker compose down`
+2) 覆盖宿主机数据库文件：`cp /path/to/old/dream.db ./data/dream.db`
+3) 重启：`docker compose up -d`
+
+如果源库使用了 SQLite WAL，建议同时复制 `dream.db-wal` 与 `dream.db-shm`。
+如果希望迁移封面缓存，也请同步复制 `./data/covers`。
 
 ## 5. 首次联调顺序（建议）
 
@@ -148,8 +159,8 @@ rm -f ./data/dream.db
 - 处理：先新增更多带 `city_name` 的记录，再试。
 
 ### Q2: 登录成功但记录保存失败
-- 原因：Supabase 未执行 schema 或 RLS 配置不完整。
-- 处理：重新执行 [docs/supabase/schema.sql](docs/supabase/schema.sql)。
+- 原因：`LOCAL_DB_PATH` 不可写，或容器未挂载 `./data`。
+- 处理：检查目录权限与 compose 的 `volumes` 配置，确认 `./data` 可写。
 
 ### Q3: MusicBrainz 请求失败
 - 原因：网络波动，或未设置合理 `MUSIC_APP_CONTACT`。

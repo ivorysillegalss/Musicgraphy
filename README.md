@@ -22,7 +22,7 @@
 ## Tech Stack
 
 - Next.js (App Router) + React + TypeScript
-- d3-geo + topojson-client（地图渲染）
+- d3-geo + topojson-client（地图渲染，底图来自本地 `public/world-110m.json`）
 - MusicBrainz API（元数据与地理来源）
 - `world-countries`（国家中心点坐标）
 
@@ -50,6 +50,7 @@ cp .env.example .env.local
 
 3. 在 `.env.local` 填写：
 - `LOCAL_DB_PATH`：本地 SQLite 文件路径（默认 `./data/dream.db`）
+- `COVER_CACHE_DIR`：本地封面缓存路径（默认 `./data/covers`）
 - `NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID` / `NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL`：前端默认本地用户
 - `LOCAL_DEFAULT_USER_ID` / `LOCAL_DEFAULT_USER_EMAIL`：服务端默认本地用户
 - `DISCOVERY_ADMIN_EMAILS`：逗号分隔的管理员邮箱列表（为空时本地默认允许）
@@ -110,7 +111,21 @@ docker compose up --build
 
 - 服务启动后访问 `http://localhost:3000`
 - 数据库文件持久化在宿主机 `./data/dream.db`
+- 专辑封面缓存持久化在宿主机 `./data/covers`（容器内 `/app/public/covers`）
 - 如需外部 API，配置环境变量后重启容器
+
+### 直接复制 `dream.db` 迁移数据
+
+当前实现支持“复制数据库文件即迁移”：
+
+1. 停止服务：`docker compose down`
+2. 将旧库复制到宿主机 `./data/dream.db`（覆盖同名文件）
+3. 重启：`docker compose up -d`
+
+说明：
+- 代码会在启动时自动执行 `create table if not exists` 与缺失列补齐。
+- 建议同时复制 `dream.db-wal` 和 `dream.db-shm`（如果存在且库处于 WAL 模式），避免最后一段事务丢失。
+- 若要完整迁移封面缓存，请一并复制 `./data/covers` 目录。
 
 ## 下一步建议（对应你的路线图）
 

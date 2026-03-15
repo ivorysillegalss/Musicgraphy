@@ -4,13 +4,18 @@ services:
       context: .
       args:
         NEXT_PUBLIC_FORCE_DEFAULT_AUTH: ${NEXT_PUBLIC_FORCE_DEFAULT_AUTH:-false}
+        NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID: ${NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID:-local-user}
+        NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL: ${NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL:-local@localhost}
     ports:
       - "3000:3000"
     environment:
       LOCAL_DB_PATH: /app/data/dream.db
-      NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL: local@localhost
-      NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID: local-user
-      DISCOVERY_ADMIN_EMAILS: local@localhost
+      COVER_CACHE_DIR: /app/data/covers
+      LOCAL_DEFAULT_USER_ID: ${LOCAL_DEFAULT_USER_ID:-local-user}
+      LOCAL_DEFAULT_USER_EMAIL: ${LOCAL_DEFAULT_USER_EMAIL:-local@localhost}
+      NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL: ${NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL:-local@localhost}
+      NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID: ${NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID:-local-user}
+      DISCOVERY_ADMIN_EMAILS: ${DISCOVERY_ADMIN_EMAILS:-local@localhost}
       NEXT_PUBLIC_FORCE_DEFAULT_AUTH: ${NEXT_PUBLIC_FORCE_DEFAULT_AUTH:-false}
       MUSIC_APP_NAME: personal-music-geography
       MUSIC_APP_VERSION: 0.1.0
@@ -21,4 +26,5 @@ services:
       MUSICBRAINZ_TOKENS: ${MUSICBRAINZ_TOKENS:-}
     volumes:
       - ./data:/app/data
+      - ./data/covers:/app/public/covers
     restart: unless-stopped

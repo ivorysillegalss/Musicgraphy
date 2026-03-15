@@ -29,7 +29,11 @@ type CoverCacheRow = {
 
 const HIT_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const MISS_TTL_MS = 1000 * 60 * 60 * 24 * 14;
-const COVER_DIR = path.join(process.cwd(), "public", "covers");
+const COVER_DIR = path.join(
+  process.cwd(),
+  process.env.COVER_CACHE_DIR?.trim() || path.join("data", "covers")
+);
+const PUBLIC_COVER_DIR = path.join(process.cwd(), "public", "covers");
 const STALE_COVER_DAYS = 90;
 const CLEANUP_MAX_ROWS = 300;
 const CLEANUP_INTERVAL_MS = 1000 * 60 * 60 * 6;
@@ -55,6 +59,11 @@ function getLocalCoverPath(url: string) {
   return path.join(COVER_DIR, relative);
 }
 
+function getPublicCoverPath(url: string) {
+  const relative = url.replace(/^\/covers\//, "");
+  return path.join(PUBLIC_COVER_DIR, relative);
+}
+
 function buildCoverFileName(cacheKey: string) {
   const digest = createHash("sha1").update(cacheKey).digest("hex");
   return `${digest}.webp`;
@@ -66,12 +75,21 @@ async function persistCoverToLocal(cacheKey: string, remoteUrl: string) {
   }
 
   await fs.mkdir(COVER_DIR, { recursive: true });
+  await fs.mkdir(PUBLIC_COVER_DIR, { recursive: true });
 
   const fileName = buildCoverFileName(cacheKey);
   const localUrl = `/covers/${fileName}`;
   const targetPath = path.join(COVER_DIR, fileName);
+  const publicPath = path.join(PUBLIC_COVER_DIR, fileName);
 
   if (await fileExists(targetPath)) {
+    if (!(await fileExists(publicPath))) {
+      try {
+        await fs.copyFile(targetPath, publicPath);
+      } catch {
+        // Keep storage copy even if public mirror fails.
+      }
+    }
     return localUrl;
   }
 
@@ -107,6 +125,14 @@ async function persistCoverToLocal(cacheKey: string, remoteUrl: string) {
     const tempPath = `${targetPath}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     await fs.writeFile(tempPath, optimized);
     await fs.rename(tempPath, targetPath);
+
+    if (targetPath !== publicPath) {
+      try {
+        await fs.copyFile(targetPath, publicPath);
+      } catch {
+        // Keep storage copy even if public mirror fails.
+      }
+    }
 
     return localUrl;
   } catch {
@@ -363,10 +389,18 @@ async function cleanupStaleCovers() {
   for (const row of rows) {
     if (row.cover_url && isLocalCoverUrl(row.cover_url)) {
       const localPath = getLocalCoverPath(row.cover_url);
+      const publicPath = getPublicCoverPath(row.cover_url);
       try {
         await fs.unlink(localPath);
       } catch {
         // Ignore file system race or already deleted files.
+      }
+      if (publicPath !== localPath) {
+        try {
+          await fs.unlink(publicPath);
+        } catch {
+          // Ignore file system race or already deleted files.
+        }
       }
     }
 
