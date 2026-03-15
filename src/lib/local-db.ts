@@ -121,6 +121,17 @@ async function initializeSchema() {
         primary key (user_id, album_id)
       )`,
       `create index if not exists idx_user_favorites_user_created on user_favorites(user_id, created_at desc)`,
+      `create table if not exists album_cover_cache (
+        cache_key text primary key,
+        artist_name text,
+        album_title text,
+        source text,
+        cover_url text,
+        candidates_json text not null default '[]',
+        found integer not null default 0,
+        updated_at text not null default (datetime('now'))
+      )`,
+      `create index if not exists idx_album_cover_cache_updated_at on album_cover_cache(updated_at desc)`,
       `insert or ignore into users (id, email) values ('local-user', 'local@localhost')`,
     ],
     "write"

@@ -5,33 +5,45 @@ import { getAlbumCoverUrl } from "@/lib/assets/covers";
 
 // Simple in-memory cache to avoid redundant API calls
 const CACHE = new Map<string, string>();
+const CANDIDATE_CACHE = new Map<string, string[]>();
 const PENDING = new Map<string, Promise<string | null>>();
+const NO_COVER_SENTINEL = "__no_cover__";
+
+type CoverLookupResponse = {
+  found?: boolean;
+  source?: "itunes" | "coverartarchive" | "deezer" | null;
+  coverUrl?: string | null;
+  candidates?: string[];
+};
 
 async function fetchItunesCover(artist: string, albumName: string): Promise<string | null> {
   const cacheKey = `${artist}:${albumName}`;
-  if (CACHE.has(cacheKey)) return CACHE.get(cacheKey)!;
+  if (CACHE.has(cacheKey)) {
+    const cached = CACHE.get(cacheKey)!;
+    return cached === NO_COVER_SENTINEL ? null : cached;
+  }
   if (PENDING.has(cacheKey)) {
     return PENDING.get(cacheKey)!;
   }
 
   const promise = (async () => {
     try {
-      // Use "album" entity to get cleaner results
-      const query = encodeURIComponent(`${artist} ${albumName}`);
-      const res = await fetch(`/api/itunes-proxy?term=${query}&entity=album&limit=1`);
-      if (!res.ok) throw new Error("iTunes API error");
+      const query = new URLSearchParams({ artist, album: albumName });
+      const res = await fetch(`/api/itunes-proxy?${query.toString()}`);
+      if (!res.ok) throw new Error("Album cover API error");
 
-      const data = await res.json();
-      if (data.results && data.results.length > 0) {
-        // Get higher res image
-        // artworkUrl100 is 100x100
-        const artworkUrl = data.results[0].artworkUrl100.replace("100x100bb", "600x600bb");
-        CACHE.set(cacheKey, artworkUrl);
-        return artworkUrl;
+      const data = (await res.json()) as CoverLookupResponse;
+      const candidates = Array.from(new Set(data.candidates ?? [])).filter(Boolean);
+      if (data.found && data.coverUrl) {
+        CACHE.set(cacheKey, data.coverUrl);
+        CANDIDATE_CACHE.set(cacheKey, candidates.length > 0 ? candidates : [data.coverUrl]);
+        return data.coverUrl;
       }
     } catch (e) {
-      console.error("iTunes fetch error", e);
+      console.error("Album cover fetch error", e);
     }
+    CACHE.set(cacheKey, NO_COVER_SENTINEL);
+    CANDIDATE_CACHE.set(cacheKey, []);
     return null;
   })();
 
@@ -54,7 +66,12 @@ type AlbumArtImageProps = {
 
 export function AlbumArtImage({ artist, album, className, width, height }: AlbumArtImageProps) {
   const cacheKey = `${artist}:${album}`;
-  const [src, setSrc] = useState<string | null>(CACHE.get(cacheKey) || null);
+  const initialCached = CACHE.get(cacheKey);
+  const [src, setSrc] = useState<string | null>(
+    initialCached && initialCached !== NO_COVER_SENTINEL ? initialCached : null
+  );
+  const [candidateUrls, setCandidateUrls] = useState<string[]>(CANDIDATE_CACHE.get(cacheKey) ?? []);
+  const [candidateIndex, setCandidateIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
 
   // Fallback to local deterministic "initials" generator
@@ -70,19 +87,34 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
       const cached = CACHE.get(cacheKey);
       if (cached) {
         if (active) {
+          if (cached === NO_COVER_SENTINEL) {
+            setSrc(null);
+            setCandidateUrls([]);
+            setHasError(true);
+            return;
+          }
+
           setSrc(cached);
+          const cachedCandidates = CANDIDATE_CACHE.get(cacheKey) ?? [cached];
+          setCandidateUrls(cachedCandidates);
+          setCandidateIndex(0);
         }
         return;
       }
 
       if (active) {
         setSrc(null);
+        setCandidateUrls([]);
+        setCandidateIndex(0);
       }
 
       const url = await fetchItunesCover(artist, album);
       if (active) {
         if (url) {
           setSrc(url);
+          const cachedCandidates = CANDIDATE_CACHE.get(cacheKey) ?? [url];
+          setCandidateUrls(cachedCandidates);
+          setCandidateIndex(0);
         } else {
           setHasError(true);
         }
@@ -118,7 +150,16 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
         alt={`${album} by ${artist}`}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${!src && !hasError ? 'opacity-0' : 'opacity-100'}`}
         loading="lazy"
-        onError={() => setHasError(true)}
+        onError={() => {
+          const nextIndex = candidateIndex + 1;
+          if (nextIndex < candidateUrls.length) {
+            setCandidateIndex(nextIndex);
+            setSrc(candidateUrls[nextIndex]);
+            setHasError(false);
+            return;
+          }
+          setHasError(true);
+        }}
       />
     </div>
   );
