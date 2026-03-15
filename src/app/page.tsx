@@ -9,6 +9,7 @@ import { AppNavbar } from "@/components/ui/app-navbar";
 import { AuthModal } from "@/components/ui/auth-modal";
 import { BottomControls } from "@/components/ui/bottom-controls";
 import { GuideModal } from "@/components/ui/guide-modal";
+import { OnboardingTour } from "@/components/ui/onboarding-tour";
 import { LibraryDrawer } from "@/components/ui/library-drawer";
 import { MbTokenModal } from "@/components/ui/mb-token-modal";
 import { WorldMap } from "@/components/world-map";
@@ -22,6 +23,7 @@ import type { UserRecord } from "@/lib/types";
 
 const FAVORITES_STORAGE_KEY = "pmgt_favorites_v1";
 const LOCAL_RECORDS_STORAGE_KEY = "pmgt_local_records_v1";
+const ONBOARDING_SEEN_KEY = "pmgt_onboarding_seen_v1";
 const MIN_RELEASE_YEAR = 1960;
 const MAX_RELEASE_YEAR = new Date().getFullYear();
 
@@ -67,6 +69,7 @@ function createLocalRecordFromAlbum(album: DiscoveryAlbum): UserRecord {
 
 export default function Home() {
   const router = useRouter();
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -102,6 +105,12 @@ export default function Home() {
   useEffect(() => {
     if (!configured) {
       return;
+    }
+
+    const hasSeenOnboarding = localStorage.getItem(ONBOARDING_SEEN_KEY);
+    if (!hasSeenOnboarding) {
+      setIsOnboardingOpen(true);
+      localStorage.setItem(ONBOARDING_SEEN_KEY, "true");
     }
 
     const client = getLocalSessionClient();
@@ -664,6 +673,17 @@ export default function Home() {
           </span>
         )}
       </button>
+
+      <OnboardingTour
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+      />
+
+      <GuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        isConfigured={configured}
+      />
 
       <GuideModal
         isOpen={isGuideOpen}

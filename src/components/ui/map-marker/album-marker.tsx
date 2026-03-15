@@ -48,8 +48,8 @@ export const AlbumMarker = memo(function AlbumMarker({
       <div
         className={`w-full h-full rounded-full overflow-hidden border-2 transition-all duration-300 relative ${
           isSelected
-            ? "border-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.5)]"
-            : "border-white/20 hover:border-cyan-400/80 shadow-[0_0_15px_rgba(0,0,0,0.6)]"
+            ? "border-purple-400 shadow-[0_0_25px_rgba(168,85,247,0.5)]"
+            : "border-white/20 hover:border-purple-400/80 shadow-[0_0_15px_rgba(0,0,0,0.6)]"
         }`}
       >
         <div className="absolute inset-0 bg-zinc-900 animate-pulse" />

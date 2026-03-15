@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const jbMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
 
 export const metadata: Metadata = {
   title: "Personal Music Geography & Timeline",
@@ -13,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" className={`${inter.variable} ${jbMono.variable}`}>
+      <body className="font-sans antialiased bg-background text-foreground">
         {children}
         <Toaster />
       </body>

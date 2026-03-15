@@ -160,35 +160,46 @@ async function fetchFromCoverArtArchive(artist: string, album: string, fallbackT
 
   const urls: string[] = [];
   for (const release of releases) {
-    const coverRes = await fetch(`https://coverartarchive.org/release/${release.id}`, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 3600 },
-    });
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
 
-    if (!coverRes.ok) continue;
+      const coverRes = await fetch(`https://coverartarchive.org/release/${release.id}`, {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 3600 },
+        signal: controller.signal,
+      });
 
-    const payload = (await coverRes.json()) as {
-      images?: Array<{
-        front?: boolean;
-        image?: string;
-        thumbnails?: {
-          large?: string;
-          small?: string;
-        };
-      }>;
-    };
+      clearTimeout(timeoutId);
 
-    const images = payload.images ?? [];
-    const ordered = [
-      ...images.filter((img) => img.front),
-      ...images.filter((img) => !img.front),
-    ];
+      if (!coverRes.ok) continue;
 
-    for (const image of ordered) {
-      const url = image.thumbnails?.large ?? image.image ?? image.thumbnails?.small ?? null;
-      if (url) {
-        urls.push(url);
+      const payload = (await coverRes.json()) as {
+        images?: Array<{
+          front?: boolean;
+          image?: string;
+          thumbnails?: {
+            large?: string;
+            small?: string;
+          };
+        }>;
+      };
+
+      const images = payload.images ?? [];
+      const ordered = [
+        ...images.filter((img) => img.front),
+        ...images.filter((img) => !img.front),
+      ];
+
+      for (const image of ordered) {
+        const url = image.thumbnails?.large ?? image.image ?? image.thumbnails?.small ?? null;
+        if (url) {
+          urls.push(url);
+        }
       }
+    } catch (e) {
+      console.warn(`[CoverArtArchive] Fetch failed for release ${release.id}:`, e);
+      continue;
     }
   }
 
@@ -332,22 +343,28 @@ export async function lookupAlbumCover(options: {
     console.error("iTunes cover fetch failed:", error);
   }
 
-  try {
-    const coverArtUrls = await fetchFromCoverArtArchive(artist, album, queryTerm);
-    for (const url of coverArtUrls) {
-      foundCandidates.push({ url, source: "coverartarchive" });
+  // If iTunes already found a good quality cover, we can skip CoverArtArchive and Deezer
+  // which might be significantly slower or rate-limited.
+  if (foundCandidates.length === 0) {
+    try {
+      const coverArtUrls = await fetchFromCoverArtArchive(artist, album, queryTerm);
+      for (const url of coverArtUrls) {
+        foundCandidates.push({ url, source: "coverartarchive" });
+      }
+    } catch (error) {
+      console.error("Cover Art Archive fetch failed:", error);
     }
-  } catch (error) {
-    console.error("Cover Art Archive fetch failed:", error);
   }
 
-  try {
-    const deezerUrls = await fetchFromDeezer(queryTerm);
-    for (const url of deezerUrls) {
-      foundCandidates.push({ url, source: "deezer" });
+  if (foundCandidates.length === 0) {
+    try {
+      const deezerUrls = await fetchFromDeezer(queryTerm);
+      for (const url of deezerUrls) {
+        foundCandidates.push({ url, source: "deezer" });
+      }
+    } catch (error) {
+      console.error("Deezer cover fetch failed:", error);
     }
-  } catch (error) {
-    console.error("Deezer cover fetch failed:", error);
   }
 
   const ranked = rankCandidateUrls(foundCandidates);

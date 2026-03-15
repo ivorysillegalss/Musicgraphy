@@ -243,7 +243,7 @@ export function SearchOverlay({
           >
             <div className="flex flex-col gap-2 rounded-xl bg-zinc-900/90 border border-white/10 p-3 shadow-2xl backdrop-blur-md">
               <div className="flex items-center gap-2">
-                <Search className="w-5 h-5 text-zinc-400 ml-1" />
+                <Search className="w-5 h-5 text-purple-400 ml-1" />
                 <div className="flex-1 grid grid-cols-2 gap-2">
                   <input
                     ref={searchInputRef}
@@ -251,14 +251,14 @@ export function SearchOverlay({
                     value={artistQuery}
                     onChange={(e) => onArtistQueryChange(e.target.value)}
                     placeholder="艺人or乐队"
-                    className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 rounded-lg"
+                    className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 focus:border-purple-400 focus:bg-purple-900/10 transition-colors rounded-lg font-mono"
                   />
                   <input
                     type="text"
                     value={albumQuery}
                     onChange={(e) => onAlbumQueryChange(e.target.value)}
                     placeholder="专辑名称"
-                    className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 rounded-lg"
+                    className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 focus:border-purple-400 focus:bg-purple-900/10 transition-colors rounded-lg font-mono"
                   />
                 </div>
                 <button
@@ -298,7 +298,7 @@ export function SearchOverlay({
                           }}
                           className={`px-2 py-1 rounded-full border text-[11px] transition ${
                             active
-                              ? "border-emerald-400 bg-emerald-500/10 text-emerald-300"
+                              ? "border-purple-400 bg-purple-500/10 text-purple-300"
                               : "border-white/10 bg-white/5 hover:border-white/30"
                           }`}
                         >
@@ -388,7 +388,7 @@ export function SearchOverlay({
                               className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-white/10 text-left transition-colors"
                             >
                               <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-md bg-zinc-800">
-                                <div className="w-full h-full bg-emerald-900/30 flex items-center justify-center text-xs text-emerald-500 font-bold">
+                                <div className="w-full h-full bg-purple-900/30 flex items-center justify-center text-xs text-purple-500 font-bold">
                                   {record.score}
                                 </div>
                               </div>
@@ -400,7 +400,7 @@ export function SearchOverlay({
                                   {record.artistGeo.artistName}
                                 </div>
                               </div>
-                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 flex-shrink-0">
+                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 flex-shrink-0">
                                 我的记录
                               </div>
                             </button>

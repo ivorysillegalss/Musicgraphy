@@ -767,7 +767,7 @@ export function WorldMap({
               }
             }
 
-            return Array.from(merged.values());
+            return Array.from(merged.values()).slice(0, 20);
           });
           lastDiscoveryFetchRef.current = {
             center: [centerLng, centerLat],
