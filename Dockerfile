@@ -33,6 +33,10 @@ RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
+# Next standalone can miss optional native libsql runtime packages in tracing.
+# Copy libsql runtime dependencies from deps to guarantee sqlite driver loading.
+COPY --from=deps --chown=nextjs:nextjs /app/node_modules/libsql ./node_modules/libsql
+COPY --from=deps --chown=nextjs:nextjs /app/node_modules/@libsql ./node_modules/@libsql
 
 RUN mkdir -p /app/data && chown -R nextjs:nextjs /app/data
 
