@@ -1,11 +1,7 @@
 services:
   app:
-    build:
-      context: .
-      args:
-        NEXT_PUBLIC_FORCE_DEFAULT_AUTH: ${NEXT_PUBLIC_FORCE_DEFAULT_AUTH:-false}
-        NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID: ${NEXT_PUBLIC_LOCAL_DEFAULT_USER_ID:-local-user}
-        NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL: ${NEXT_PUBLIC_LOCAL_DEFAULT_USER_EMAIL:-local@localhost}
+    image: ${APP_IMAGE:-crpi-i0wu5sd5futj2oji.cn-guangzhou.personal.cr.aliyuncs.com/chenzczczc/dream:latest}
+    pull_policy: always
     ports:
       - "3000:3000"
     environment:
@@ -27,4 +23,12 @@ services:
     volumes:
       - ./data:/app/data
       - ./data/covers:/app/public/covers
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        mkdir -p /app/data /app/data/covers /app/public/covers
+        touch /app/data/.write-test && rm -f /app/data/.write-test
+        touch /app/public/covers/.write-test && rm -f /app/public/covers/.write-test
+        exec node server.js
     restart: unless-stopped

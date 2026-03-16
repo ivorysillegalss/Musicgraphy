@@ -29,10 +29,12 @@ type CoverCacheRow = {
 
 const HIT_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const MISS_TTL_MS = 1000 * 60 * 60 * 24 * 14;
-const COVER_DIR = path.join(
-  process.cwd(),
-  process.env.COVER_CACHE_DIR?.trim() || path.join("data", "covers")
-);
+const configuredCoverDir = process.env.COVER_CACHE_DIR?.trim();
+const COVER_DIR = configuredCoverDir
+  ? path.isAbsolute(configuredCoverDir)
+    ? configuredCoverDir
+    : path.join(process.cwd(), configuredCoverDir)
+  : path.join(process.cwd(), "data", "covers");
 const PUBLIC_COVER_DIR = path.join(process.cwd(), "public", "covers");
 const STALE_COVER_DAYS = 90;
 const CLEANUP_MAX_ROWS = 300;
