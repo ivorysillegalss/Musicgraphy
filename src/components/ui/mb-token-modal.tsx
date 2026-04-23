@@ -9,7 +9,10 @@ type MbTokenModalProps = {
   onChange: (next: string) => void;
   onClose: () => void;
   onSave: () => Promise<void>;
+  onConnectOAuth?: () => Promise<void>;
   isSaving: boolean;
+  isConnectingOAuth?: boolean;
+  oauthEnabled?: boolean;
   message?: { text: string; tone: "success" | "error" } | null;
 };
 
@@ -26,7 +29,10 @@ export function MbTokenModal({
   onChange,
   onClose,
   onSave,
+  onConnectOAuth,
   isSaving,
+  isConnectingOAuth,
+  oauthEnabled,
   message,
 }: MbTokenModalProps) {
   const tokens = splitTokens(value);
@@ -70,6 +76,23 @@ export function MbTokenModal({
                 </div>
               </div>
 
+              <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-sm text-indigo-100">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs leading-5">可直接通过 MusicBrainz OAuth 绑定，自动获取并续期 access token。</p>
+                  <button
+                    onClick={() => {
+                      if (onConnectOAuth) {
+                        void onConnectOAuth();
+                      }
+                    }}
+                    disabled={!oauthEnabled || isConnectingOAuth}
+                    className="rounded-full bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isConnectingOAuth ? "连接中..." : "连接 OAuth"}
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400">MB tokens（每行或逗号分隔）</label>
                 <textarea
@@ -108,7 +131,7 @@ export function MbTokenModal({
               </button>
               <button
                 onClick={() => void onSave()}
-                disabled={isSaving}
+                disabled={isSaving || isConnectingOAuth}
                 className="flex items-center gap-2 rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-indigo-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}

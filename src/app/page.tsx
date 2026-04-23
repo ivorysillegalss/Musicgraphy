@@ -93,6 +93,7 @@ export default function Home() {
   const [isMbTokenOpen, setIsMbTokenOpen] = useState(false);
   const [mbTokensInput, setMbTokensInput] = useState("");
   const [isSavingMbTokens, setIsSavingMbTokens] = useState(false);
+  const [isConnectingMbOAuth, setIsConnectingMbOAuth] = useState(false);
   const [mbTokenStatus, setMbTokenStatus] = useState<{
     text: string;
     tone: "success" | "error";
@@ -126,6 +127,29 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, [configured]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const status = (url.searchParams.get("mb_oauth") || "").trim();
+    if (!status) {
+      return;
+    }
+
+    const rawMessage = (url.searchParams.get("mb_oauth_message") || "").trim();
+    const message = rawMessage || (status === "success" ? "MusicBrainz OAuth connected." : "MusicBrainz OAuth failed.");
+
+    if (status === "success") {
+      setMbTokenStatus({ text: message, tone: "success" });
+      toast.success(message);
+    } else {
+      setMbTokenStatus({ text: message, tone: "error" });
+      toast.error(message);
+    }
+
+    url.searchParams.delete("mb_oauth");
+    url.searchParams.delete("mb_oauth_message");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   useEffect(() => {
     if (!configured) {
@@ -364,6 +388,42 @@ export default function Home() {
       toast.error(message);
     } finally {
       setIsSavingMbTokens(false);
+    }
+  }
+
+  async function connectMusicBrainzOAuth() {
+    if (!configured) {
+      toast.error("本地后端未启用，无法连接 MusicBrainz OAuth。");
+      return;
+    }
+    if (!session) {
+      setIsAuthOpen(true);
+      toast.info("请先登录后再连接 MusicBrainz OAuth。");
+      return;
+    }
+
+    setIsConnectingMbOAuth(true);
+    setMbTokenStatus(null);
+
+    try {
+      const res = await fetch("/api/user/mb-oauth/start", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.url !== "string") {
+        throw new Error(data?.message || "Failed to start MusicBrainz OAuth.");
+      }
+
+      window.location.assign(data.url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to connect MusicBrainz OAuth.";
+      setMbTokenStatus({ text: message, tone: "error" });
+      toast.error(message);
+      setIsConnectingMbOAuth(false);
     }
   }
 
@@ -708,10 +768,14 @@ export default function Home() {
         onClose={() => {
           setIsMbTokenOpen(false);
           setIsSavingMbTokens(false);
+          setIsConnectingMbOAuth(false);
           setMbTokenStatus(null);
         }}
         onSave={saveMbTokens}
+        onConnectOAuth={connectMusicBrainzOAuth}
         isSaving={isSavingMbTokens}
+        isConnectingOAuth={isConnectingMbOAuth}
+        oauthEnabled={configured}
         message={mbTokenStatus}
       />
 

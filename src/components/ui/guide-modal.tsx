@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, Music2, Globe, Calendar } from "lucide-react";
+import { X, Users, Music2, Globe, Calendar, Search } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type GuideModalProps = {
@@ -94,6 +94,18 @@ export function GuideModal({ isOpen, onClose, isConfigured }: GuideModalProps) {
                        </div>
                     </div>
                  </div>
+              </div>
+
+              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-300">
+                    <Search size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-cyan-100">{t.guide.searchTitle}</h3>
+                    <p className="text-sm text-cyan-200/80 mt-1">{t.guide.searchDesc}</p>
+                  </div>
+                </div>
               </div>
 
               {/* Status Footer */}

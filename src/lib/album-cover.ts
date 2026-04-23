@@ -281,7 +281,7 @@ async function fetchFromCoverArtArchive(artist: string, album: string, fallbackT
   for (const release of releases) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
       const coverRes = await fetch(`https://coverartarchive.org/release/${release.id}`, {
         headers: { Accept: "application/json" },

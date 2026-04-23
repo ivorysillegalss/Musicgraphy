@@ -142,6 +142,13 @@ export function SearchOverlay({
             setSearchResults(validResults);
             setSearchMeta(meta);
             cacheRef.current.set(fullCacheKey, { ts: Date.now(), results: validResults, meta });
+
+            // External search may persist new rows into local discovery_pool.
+            // Drop stale local-only cache for the same query so the next local search refetches.
+            if (useExternalSearch && validResults.length > 0) {
+              const localOnlyCacheKey = `${key}|external:0`;
+              cacheRef.current.delete(localOnlyCacheKey);
+            }
           }
         }
       } catch (error) {

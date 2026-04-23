@@ -4,6 +4,11 @@ import { ApiHttpError, handleApiError } from "@/lib/api-error";
 import { getLocalAuthUser } from "@/lib/local-auth";
 import { DISCOVERY_ALBUM_CATALOG } from "@/lib/discovery-catalog";
 import { dbAll, dbGet, dbRun } from "@/lib/local-db";
+import {
+  computeTokenExpiryIso,
+  refreshMusicBrainzAccessToken,
+  resolveMusicBrainzOAuthConfig,
+} from "@/lib/musicbrainz-oauth";
 import { searchReleasesByFields, resolveArtistGeoById } from "@/lib/musicbrainz";
 import { resolveArtistGeoWithCache } from "@/lib/record-ingest";
 import { getCountryCoordinates } from "@/lib/country-centroid";
@@ -14,7 +19,19 @@ const MB_RATE_LIMIT_COOLDOWN_MS = 120_000;
 
 type RateLimitLikeError = {
   code?: string;
+  status?: number;
+  message?: string;
 };
+
+function isMusicBrainzRateLimitError(error: unknown) {
+  const e = error as RateLimitLikeError | null;
+  if (!e) return false;
+  if (e.code === "RATE_LIMIT") return true;
+  if (e.status === 503) return true;
+
+  const msg = (e.message ?? "").toLowerCase();
+  return msg.includes("rate limit") || msg.includes("allowable rate") || msg.includes("503");
+}
 
 function pickFromList(tokens: string[], seed: string): string | null {
   if (!tokens.length) return null;
@@ -51,6 +68,87 @@ async function getUserMbToken(userId: string | null, seed: string): Promise<stri
   }
 }
 
+async function getPreferredUserMbToken(
+  request: Request,
+  userId: string | null,
+  seed: string
+): Promise<string | null> {
+  if (!userId) return null;
+
+  try {
+    const row = await dbGet<{
+      mb_oauth_access_token: string | null;
+      mb_oauth_refresh_token: string | null;
+      mb_oauth_expires_at: string | null;
+    }>(
+      `select mb_oauth_access_token, mb_oauth_refresh_token, mb_oauth_expires_at
+       from users
+       where id = ?
+       limit 1`,
+      [userId]
+    );
+
+    const accessToken = row?.mb_oauth_access_token?.trim() || "";
+    const refreshToken = row?.mb_oauth_refresh_token?.trim() || "";
+    const expiresMs = Date.parse(row?.mb_oauth_expires_at ?? "");
+    const hasFreshAccessToken =
+      Boolean(accessToken) && Number.isFinite(expiresMs) && Date.now() < expiresMs - 30_000;
+
+    if (hasFreshAccessToken) {
+      return accessToken;
+    }
+
+    if (refreshToken) {
+      const config = resolveMusicBrainzOAuthConfig(request);
+      if (config) {
+        try {
+          const refreshed = await refreshMusicBrainzAccessToken({
+            tokenUrl: config.tokenUrl,
+            refreshToken,
+            clientId: config.clientId,
+            clientSecret: config.clientSecret,
+          });
+
+          const refreshedAccessToken = refreshed.access_token?.trim() || "";
+          if (refreshedAccessToken) {
+            const expiresAt = computeTokenExpiryIso(refreshed.expires_in);
+            const nextRefreshToken = refreshed.refresh_token ?? refreshToken;
+
+            await dbRun(
+              `update users
+               set mb_oauth_access_token = ?,
+                   mb_oauth_refresh_token = ?,
+                   mb_oauth_token_type = ?,
+                   mb_oauth_scope = ?,
+                   mb_oauth_expires_at = ?,
+                   mb_token = ?,
+                   updated_at = datetime('now')
+               where id = ?`,
+              [
+                refreshedAccessToken,
+                nextRefreshToken,
+                refreshed.token_type ?? "Bearer",
+                refreshed.scope ?? null,
+                expiresAt,
+                refreshedAccessToken,
+                userId,
+              ]
+            );
+
+            return refreshedAccessToken;
+          }
+        } catch {
+          // Fall through to legacy user tokens when refresh fails.
+        }
+      }
+    }
+  } catch {
+    // Fall through to legacy user tokens when oauth lookup fails.
+  }
+
+  return getUserMbToken(userId, seed);
+}
+
 function hashString(value: string): number {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -83,6 +181,12 @@ type SearchMeta = {
   externalAttempted: boolean;
   externalSuppressedByCooldown: boolean;
   externalError?: string;
+};
+
+type SearchHints = {
+  artistQuery?: string;
+  albumQuery?: string;
+  query?: string;
 };
 
 function normalizeKey(title: string, artist: string) {
@@ -145,7 +249,28 @@ function normalizeClusterPart(value: string | null | undefined) {
     .replace(/[^a-z0-9-]/g, "");
 }
 
-async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
+function buildSearchAlias(primary: string, ...aliases: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  const add = (value: string | null | undefined) => {
+    const text = String(value ?? "").trim();
+    if (!text) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    output.push(text);
+  };
+
+  add(primary);
+  for (const alias of aliases) {
+    add(alias);
+  }
+
+  return output.join(" | ");
+}
+
+async function upsertDiscoveryPoolFromSearch(result: SearchResult, hints?: SearchHints) {
   const cityName = sanitizeGeoLabel(result.cityName);
   const regionCode = null;
   const regionName = null;
@@ -155,16 +280,28 @@ async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
   const geoClusterKey = clusterCity
     ? `${clusterCountry}:na:${clusterCity}`
     : clusterCountry;
+  const artistSearchName = buildSearchAlias(
+    result.artistName,
+    hints?.artistQuery,
+    hints?.query
+  );
+  const albumSearchTitle = buildSearchAlias(
+    result.albumTitle,
+    hints?.albumQuery,
+    hints?.query
+  );
 
   await dbRun(
     `insert into discovery_pool (
-      id, album_title, artist_name, release_year, country_code, country_name,
+      id, album_title, album_search_title, artist_name, artist_search_name, release_year, country_code, country_name,
       city_name, region_code, region_name, geo_granularity, geo_cluster_key,
       lng, lat, enabled, weight, created_at
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'))
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'))
     on conflict(id) do update set
       album_title = excluded.album_title,
+      album_search_title = excluded.album_search_title,
       artist_name = excluded.artist_name,
+      artist_search_name = excluded.artist_search_name,
       release_year = excluded.release_year,
       country_code = excluded.country_code,
       country_name = excluded.country_name,
@@ -180,7 +317,9 @@ async function upsertDiscoveryPoolFromSearch(result: SearchResult) {
     [
       result.id,
       result.albumTitle,
+      albumSearchTitle,
       result.artistName,
+      artistSearchName,
       result.releaseYear,
       result.countryCode,
       result.countryName,
@@ -206,7 +345,7 @@ export async function GET(request: Request) {
     const combinedQuery = `${artistQuery} ${albumQuery} ${query}`.trim();
     const allowExternal = searchParams.get("allowExternal") === "1";
     const userId = user.id;
-    const userMbToken = await getUserMbToken(userId, combinedQuery || "seed");
+    const userMbToken = await getPreferredUserMbToken(request, userId, combinedQuery || "seed");
 
   if (!combinedQuery) {
     const emptyMeta: SearchMeta = {
@@ -256,16 +395,18 @@ export async function GET(request: Request) {
     const lq = albumQuery.toLowerCase();
 
     if (lq) {
-      sqlFilters.push("lower(album_title) like ?");
-      sqlArgs.push(`%${lq}%`);
+      sqlFilters.push("(lower(album_title) like ? or lower(coalesce(album_search_title, '')) like ?)");
+      sqlArgs.push(`%${lq}%`, `%${lq}%`);
     }
     if (aq) {
-      sqlFilters.push("lower(artist_name) like ?");
-      sqlArgs.push(`%${aq}%`);
+      sqlFilters.push("(lower(artist_name) like ? or lower(coalesce(artist_search_name, '')) like ?)");
+      sqlArgs.push(`%${aq}%`, `%${aq}%`);
     }
     if (!lq && !aq && q) {
-      sqlFilters.push("(lower(album_title) like ? or lower(artist_name) like ?)");
-      sqlArgs.push(`%${q}%`, `%${q}%`);
+      sqlFilters.push(
+        "(lower(album_title) like ? or lower(artist_name) like ? or lower(coalesce(album_search_title, '')) like ? or lower(coalesce(artist_search_name, '')) like ?)"
+      );
+      sqlArgs.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
     }
 
     // Keep local search fast by trimming DB payload before JS post-processing.
@@ -346,7 +487,7 @@ export async function GET(request: Request) {
     const inCooldown = now - lastMbRateLimitMs < MB_RATE_LIMIT_COOLDOWN_MS;
     externalSuppressedByCooldown = inCooldown;
     if (inCooldown) {
-      externalError = "Third-party search is cooling down due to recent rate limits.";
+      externalError = undefined;
     }
     if (!inCooldown) {
       try {
@@ -377,13 +518,6 @@ export async function GET(request: Request) {
           if (!artist) continue;
           if (seenReleaseIds.has(release.id)) continue;
           seenReleaseIds.add(release.id);
-
-          // Check if we already have this in our results
-          const exists = results.some(
-            (r) => normalizeKey(r.albumTitle, r.artistName) === normalizeKey(release.title, artist.name)
-          );
-
-          if (exists) continue;
 
           // Try to get geo info for the artist
           let geoInfo: {
@@ -475,13 +609,23 @@ export async function GET(request: Request) {
               tags: release.tags ?? [],
             };
 
-            results.push(item);
-
             try {
-              await upsertDiscoveryPoolFromSearch(item);
+              await upsertDiscoveryPoolFromSearch(item, {
+                artistQuery,
+                albumQuery,
+                query,
+              });
             } catch (cacheError) {
               // Search should not fail if cache write fails.
               console.error("Failed to persist external search result:", cacheError);
+            }
+
+            // Deduplicate for current response, but always persist to local pool.
+            const exists = results.some(
+              (r) => normalizeKey(r.albumTitle, r.artistName) === normalizeKey(item.albumTitle, item.artistName)
+            );
+            if (!exists) {
+              results.push(item);
             }
           }
         }
@@ -491,7 +635,13 @@ export async function GET(request: Request) {
         }
       } catch (e) {
         console.error("MusicBrainz search error:", e);
-        externalError = e instanceof Error ? e.message : "Third-party search request failed.";
+        if (isMusicBrainzRateLimitError(e)) {
+          lastMbRateLimitMs = now;
+          externalSuppressedByCooldown = true;
+          externalError = undefined;
+        } else {
+          externalError = e instanceof Error ? e.message : "Third-party search request failed.";
+        }
       }
     }
   }

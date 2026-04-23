@@ -88,7 +88,9 @@ async function initializeSchema() {
       `create table if not exists discovery_pool (
         id text primary key,
         album_title text not null,
+        album_search_title text,
         artist_name text not null,
+        artist_search_name text,
         release_year integer not null,
         country_code text not null,
         country_name text not null,
@@ -160,6 +162,8 @@ async function ensureGeoSchemaCompatibility(client: Client) {
   await ensureColumn(client, "discovery_pool", "region_name", "text");
   await ensureColumn(client, "discovery_pool", "geo_granularity", "text not null default 'country'");
   await ensureColumn(client, "discovery_pool", "geo_cluster_key", "text");
+  await ensureColumn(client, "discovery_pool", "album_search_title", "text");
+  await ensureColumn(client, "discovery_pool", "artist_search_name", "text");
 
   await ensureColumn(client, "artist_geo_cache", "region_code", "text");
   await ensureColumn(client, "artist_geo_cache", "region_name", "text");
@@ -169,10 +173,20 @@ async function ensureGeoSchemaCompatibility(client: Client) {
   await ensureColumn(client, "user_records", "region_name", "text");
   await ensureColumn(client, "user_records", "geo_granularity", "text not null default 'country'");
 
+  await ensureColumn(client, "users", "mb_oauth_access_token", "text");
+  await ensureColumn(client, "users", "mb_oauth_refresh_token", "text");
+  await ensureColumn(client, "users", "mb_oauth_token_type", "text");
+  await ensureColumn(client, "users", "mb_oauth_scope", "text");
+  await ensureColumn(client, "users", "mb_oauth_expires_at", "text");
+  await ensureColumn(client, "users", "mb_oauth_state", "text");
+  await ensureColumn(client, "users", "mb_oauth_state_expires_at", "text");
+  await ensureColumn(client, "users", "mb_oauth_connected_at", "text");
+
   await client.batch(
     [
       `create index if not exists idx_discovery_pool_geo_cluster on discovery_pool(geo_cluster_key)`,
       `create index if not exists idx_discovery_pool_release_country on discovery_pool(release_year, country_code)`,
+      `create index if not exists idx_users_mb_oauth_state on users(mb_oauth_state)`,
     ],
     "write"
   );

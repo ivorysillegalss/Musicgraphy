@@ -8,13 +8,13 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
 import type { UserRecord } from "@/lib/types";
-import { AlbumMarker, UserRecordMarker } from "@/components/ui/map-marker/album-marker";
+import { AlbumMarker } from "@/components/ui/map-marker/album-marker";
 import { AlbumArtImage } from "@/components/ui/album-art-image";
 import { MemoizedGeographies } from "@/components/ui/memoized-geographies";
 import { MapControls } from "@/components/ui/map-controls";
 import { SearchOverlay } from "@/components/ui/search-overlay";
 import { sanitizeGeoLabel } from "@/lib/geo-label";
-import { X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 type WorldMapProps = {
   userRecords: UserRecord[];
@@ -93,10 +93,6 @@ function albumArtistKey(albumTitle: string, artistName: string) {
 function isSameAlbumSelection(a: DiscoveryAlbum, b: DiscoveryAlbum) {
   if (a.id && b.id && a.id === b.id) return true;
   return albumArtistKey(a.albumTitle, a.artistName) === albumArtistKey(b.albumTitle, b.artistName);
-}
-
-function albumTitleKey(albumTitle: string) {
-  return normalizeCompareValue(albumTitle);
 }
 
 function artistNameKey(artistName: string) {
@@ -579,7 +575,7 @@ export function WorldMap({
   const [collisionPresetStatus, setCollisionPresetStatus] = useState<string | null>(null);
   const [layerVisibility, setLayerVisibility] = useState(() =>
     isAuthenticated
-      ? { roam: true, heard: true, favorites: true }
+      ? { roam: true, heard: false, favorites: true }
       : { roam: true, heard: false, favorites: false }
   );
 
@@ -632,7 +628,7 @@ export function WorldMap({
     prevAuthRef.current = isAuthenticated;
 
     if (isAuthenticated) {
-      setLayerVisibility({ roam: true, heard: true, favorites: true });
+      setLayerVisibility({ roam: true, heard: false, favorites: true });
     } else {
       setLayerVisibility({ roam: true, heard: false, favorites: false });
     }
@@ -945,10 +941,6 @@ export function WorldMap({
     () => new Set(userRecords.map((record) => albumArtistKey(record.albumTitle, record.artistGeo.artistName))),
     [userRecords]
   );
-  const heardTitleKeySet = useMemo(
-    () => new Set(userRecords.map((record) => albumTitleKey(record.albumTitle))),
-    [userRecords]
-  );
   const favoriteAlbumKeySet = useMemo(
     () => new Set(favorites.map((album) => albumArtistKey(album.albumTitle, album.artistName))),
     [favorites]
@@ -965,7 +957,7 @@ export function WorldMap({
       const key = albumArtistKey(album.albumTitle, album.artistName);
       
       if (selectedDiscovery && album.id === selectedDiscovery.id) {
-        const isHeard = heardAlbumKeySet.has(key) || heardTitleKeySet.has(albumTitleKey(album.albumTitle));
+        const isHeard = heardAlbumKeySet.has(key);
         const isFav = favoriteAlbumKeySet.has(key);
         
         const willBeRenderedAsHeard = isHeard && layerVisibility.heard;
@@ -983,8 +975,7 @@ export function WorldMap({
         return false;
       }
 
-      // If the title already exists in heard records, hide discovery duplicate even when artist aliases differ.
-      return !heardTitleKeySet.has(albumTitleKey(album.albumTitle));
+      return true;
     });
 
     const artistDedupedDiscovery = pickOneAlbumPerArtist(
@@ -1020,7 +1011,6 @@ export function WorldMap({
     favoriteAlbumKeySet,
     filteredAlbums,
     heardAlbumKeySet,
-    heardTitleKeySet,
     layerVisibility.roam,
     layerVisibility.heard,
     layerVisibility.favorites,
@@ -1080,11 +1070,10 @@ export function WorldMap({
       const key = albumArtistKey(album.albumTitle, album.artistName);
       if (heardAlbumKeySet.has(key)) continue;
       if (favoriteAlbumKeySet.has(key)) continue;
-      if (heardTitleKeySet.has(albumTitleKey(album.albumTitle))) continue;
       roamCount++;
     }
-    return roamCount + filteredUserRecords.length + filteredFavoriteAlbums.length;
-  }, [filteredAlbums, filteredUserRecords.length, filteredFavoriteAlbums.length, heardAlbumKeySet, favoriteAlbumKeySet, heardTitleKeySet]);
+    return roamCount + filteredFavoriteAlbums.length;
+  }, [filteredAlbums, filteredFavoriteAlbums.length, heardAlbumKeySet, favoriteAlbumKeySet]);
 
   const totalMarkers = targetTotalMarkers;
   
@@ -1329,7 +1318,6 @@ export function WorldMap({
     };
   }, [discoveryMarkerById, favoriteMarkerById, jitteredGlobalMarkers, userRecordById]);
 
-  const jitteredUserMarkers = jitteredMarkerBuckets.users;
   const jitteredDiscoveryMarkers = jitteredMarkerBuckets.discoveries;
   const jitteredFavoriteMarkers = jitteredMarkerBuckets.favorites;
 
@@ -1430,15 +1418,7 @@ export function WorldMap({
   const isSelectedDiscoveryHeard = useMemo(() => {
     if (!selectedDiscovery) return false;
     const selectedKey = albumArtistKey(selectedDiscovery.albumTitle, selectedDiscovery.artistName);
-    const selectedTitle = albumTitleKey(selectedDiscovery.albumTitle);
-    return userRecords.some((r) => {
-      const key = albumArtistKey(r.albumTitle, r.artistGeo.artistName);
-      if (key === selectedKey) {
-        return true;
-      }
-      return albumTitleKey(r.albumTitle) === selectedTitle;
-    }
-    );
+    return userRecords.some((r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) === selectedKey);
   }, [userRecords, selectedDiscovery]);
 
   function toggleDiscoverySelection(album: DiscoveryAlbum, focus = true) {
@@ -1517,13 +1497,6 @@ export function WorldMap({
                   indicatorClass: "bg-cyan-400"
                 },
                 {
-                  key: "heard",
-                  label: "听过",
-                  active: layerVisibility.heard,
-                  activeClass: "bg-emerald-500/20 text-emerald-200 shadow-[inset_0_1px_1px_rgba(52,211,153,0.2)] border-emerald-500/30",
-                  indicatorClass: "bg-emerald-400"
-                },
-                {
                   key: "favorites",
                   label: "喜欢",
                   active: layerVisibility.favorites,
@@ -1570,6 +1543,20 @@ export function WorldMap({
         }}
         className="absolute right-6 top-1/2 -translate-y-1/2 z-20"
       />
+
+      {!isSearchOpen ? (
+        <button
+          type="button"
+          onClick={() => setIsSearchOpen(true)}
+          className="absolute right-24 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 backdrop-blur transition hover:bg-cyan-500/20"
+          title="搜索艺人或专辑"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Search className="h-3.5 w-3.5" />
+            Search artists/albums
+          </span>
+        </button>
+      ) : null}
 
       {process.env.NODE_ENV !== "production" ? (
         <div className="absolute right-6 top-24 z-30 pointer-events-auto">
@@ -1811,30 +1798,6 @@ export function WorldMap({
                 </div>
               );
             })}
-
-            {jitteredUserMarkers.map((marker) => (
-              <div
-                key={marker.props.id}
-                className="absolute will-change-[top,left]"
-                style={{
-                  left: `${(marker.x / SVG_WIDTH) * 100}%`,
-                  top: `${(marker.y / SVG_HEIGHT) * 100}%`,
-                  transform: "translate(-50%, -50%)"
-                }}
-              >
-                  <UserRecordMarker
-                    data={{
-                      id: marker.props.id,
-                      albumTitle: marker.props.albumTitle,
-                      artistName: marker.props.artistName,
-                    }}
-                    size={userMarkerSize}
-                    onClick={() => {
-                      toggleUserRecordSelection(marker.props.id);
-                    }}
-                  />
-              </div>
-            ))}
 
             {jitteredFavoriteMarkers.map((marker) => (
               <div

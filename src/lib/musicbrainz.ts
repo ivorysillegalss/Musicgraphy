@@ -40,6 +40,14 @@ const MUSICBRAINZ_BASE_URL =
   (process.env.MUSICBRAINZ_BASE_URL?.trim() || "https://musicbrainz.org/ws/2").replace(/\/+$/, "");
 const MUSICBRAINZ_TIMEOUT_MS = Number.parseInt(process.env.MUSICBRAINZ_TIMEOUT_MS ?? "12000", 10);
 const MUSICBRAINZ_RETRIES = Number.parseInt(process.env.MUSICBRAINZ_RETRIES ?? "2", 10);
+const MUSICBRAINZ_MIN_INTERVAL_MS = Number.parseInt(
+  process.env.MUSICBRAINZ_MIN_INTERVAL_MS ?? "1100",
+  10
+);
+const MUSICBRAINZ_EXACT_MAX_PAGES = Number.parseInt(
+  process.env.MUSICBRAINZ_EXACT_MAX_PAGES ?? "2",
+  10
+);
 const OUTBOUND_PROXY =
   process.env.HTTPS_PROXY?.trim() ||
   process.env.HTTP_PROXY?.trim() ||
@@ -50,6 +58,9 @@ const MB_TOKENS = (process.env.MUSICBRAINZ_TOKENS ?? process.env.MUSICBRAINZ_TOK
   .split(",")
   .map((t) => t.trim())
   .filter(Boolean);
+
+let mbRequestChain: Promise<void> = Promise.resolve();
+let lastMbRequestAt = 0;
 
 try {
   dns.setDefaultResultOrder("ipv4first");
@@ -84,12 +95,35 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitForMusicBrainzSlot() {
+  const minInterval = Number.isFinite(MUSICBRAINZ_MIN_INTERVAL_MS)
+    ? Math.max(0, MUSICBRAINZ_MIN_INTERVAL_MS)
+    : 0;
+  if (minInterval === 0) {
+    return;
+  }
+
+  const slot = mbRequestChain.then(async () => {
+    const now = Date.now();
+    const waitMs = Math.max(0, lastMbRequestAt + minInterval - now);
+    if (waitMs > 0) {
+      await sleep(waitMs);
+    }
+    lastMbRequestAt = Date.now();
+  });
+
+  mbRequestChain = slot.catch(() => undefined);
+  await slot;
+}
+
 async function fetchMusicBrainz<T>(path: string, overrideToken?: string | null): Promise<T> {
   const token = overrideToken ?? pickAuthToken(path);
   const attempts = Math.max(1, MUSICBRAINZ_RETRIES + 1);
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await waitForMusicBrainzSlot();
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), MUSICBRAINZ_TIMEOUT_MS);
 
@@ -221,7 +255,8 @@ function isExactReleaseMatch(item: { title: string }, release: string) {
 
 async function fetchAllExactReleaseMatches(
   params: { artist?: string | null; release?: string | null },
-  authToken?: string | null
+  authToken?: string | null,
+  maxResults = 10
 ) {
   const artist = sanitizeTerm(params.artist);
   const release = sanitizeTerm(params.release);
@@ -247,10 +282,16 @@ async function fetchAllExactReleaseMatches(
   const seenReleaseIds = new Set<string>();
   let offset = 0;
   let total = Number.POSITIVE_INFINITY;
+  let pagesFetched = 0;
+  const maxPages = artist && release
+    ? Number.POSITIVE_INFINITY
+    : Math.max(1, MUSICBRAINZ_EXACT_MAX_PAGES);
+  const targetCount = Number.isFinite(maxResults) ? Math.max(1, maxResults) : 10;
 
-  while (offset < total) {
+  while (offset < total && pagesFetched < maxPages && collected.length < targetCount) {
     const path = `/release?query=${encoded}&fmt=json&limit=${pageSize}&offset=${offset}&inc=artist-credits+tags+genres`;
     const response = await fetchMusicBrainz<MusicBrainzReleaseResponse>(path, authToken);
+    pagesFetched += 1;
     const mapped = mapReleaseResponse(response);
 
     for (const item of mapped) {
@@ -258,6 +299,9 @@ async function fetchAllExactReleaseMatches(
       if (seenReleaseIds.has(item.id)) continue;
       seenReleaseIds.add(item.id);
       collected.push(item);
+      if (collected.length >= targetCount) {
+        return collected.slice(0, targetCount);
+      }
     }
 
     const responseCount = response["release-count"] ?? response.count ?? 0;
@@ -285,9 +329,9 @@ export async function searchReleasesByFields(
   // 2) artist-only/release-only => return all exact matches for that field
   // 3) if exact is empty, fallback to fuzzy MB query variants
   if (artist || release) {
-    const exactMatches = await fetchAllExactReleaseMatches({ artist, release }, authToken);
+    const exactMatches = await fetchAllExactReleaseMatches({ artist, release }, authToken, limit);
     if (exactMatches.length > 0) {
-      return exactMatches;
+      return exactMatches.slice(0, limit);
     }
   }
 
