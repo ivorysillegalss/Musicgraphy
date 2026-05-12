@@ -1452,7 +1452,7 @@ export function WorldMap({
     <div className="relative w-full h-full">
       <div className="absolute left-6 top-24 z-10 flex flex-col gap-2 pointer-events-none">
         {isAuthenticated ? (
-          <div className="pointer-events-auto self-start flex gap-1 rounded-full border border-white/10 bg-black/40 p-1 shadow-2xl backdrop-blur-xl transition-all duration-300">
+          <div className="pointer-events-auto self-start flex gap-1 rounded-full border border-white/[0.06] bg-black/50 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl transition-all duration-300">
             <button
               onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
               title="切换图层面板"
@@ -1513,10 +1513,10 @@ export function WorldMap({
                       [item.key]: !prev[item.key as keyof typeof prev],
                     }))
                   }
-                  className={`relative flex items-center shrink-0 justify-center rounded-full border border-transparent px-4 py-1.5 text-[13px] font-medium tracking-wide transition-all duration-300 ease-out ${
+                  className={`relative flex items-center shrink-0 justify-center rounded-full border border-transparent px-4 py-1.5 text-xs font-medium tracking-wide transition-all duration-300 ease-out ${
                     item.active
                       ? item.activeClass
-                      : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                      : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300"
                   }`}
                 >
                   {item.label}
@@ -1548,8 +1548,8 @@ export function WorldMap({
         <button
           type="button"
           onClick={() => setIsSearchOpen(true)}
-          className="absolute right-24 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 backdrop-blur transition hover:bg-cyan-500/20"
-          title="搜索艺人或专辑"
+          className="absolute right-24 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/[0.08] bg-black/50 px-3.5 py-2 text-xs font-medium text-zinc-300 backdrop-blur-xl transition-all hover:bg-white/[0.06] hover:text-white hover:border-white/20 shadow-2xl shadow-black/30 active:scale-95"
+          title="Search artists or albums"
         >
           <span className="inline-flex items-center gap-1.5">
             <Search className="h-3.5 w-3.5" />
@@ -1753,7 +1753,7 @@ export function WorldMap({
         }}
       />
 
-      <div className="w-full h-full bg-[#09090b] relative overflow-hidden">
+      <div className="w-full h-full bg-[#0c0c0c] relative overflow-hidden">
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="w-full h-full"
@@ -1764,7 +1764,7 @@ export function WorldMap({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         >
-          <rect x={0} y={0} width={SVG_WIDTH} height={SVG_HEIGHT} fill="#09090b" />
+          <rect x={0} y={0} width={SVG_WIDTH} height={SVG_HEIGHT} fill="#0c0c0c" />
           <MemoizedGeographies geographies={worldGeographies} pathBuilder={pathBuilder} />
         </svg>
 
@@ -1818,7 +1818,7 @@ export function WorldMap({
                       toggleDiscoverySelection(marker.album, true);
                     }}
                   />
-                  <span className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-pink-500/90 px-1 text-[10px] font-bold text-white">
+                  <span className="pointer-events-none absolute -right-1.5 -top-1.5 rounded-full bg-[#8a4a5a]/80 px-1.5 text-[9px] font-bold text-white ring-1 ring-white/10">
                     ♥
                   </span>
                 </div>
@@ -1829,62 +1829,63 @@ export function WorldMap({
 
       <AnimatePresence mode="wait">
         {selectedDiscovery ? (
-          <motion.div 
+          <motion.div
             key={`discovery-popup-${selectedDiscovery.id}`}
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-zinc-200 backdrop-blur-xl shadow-2xl sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[320px]"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[#141414] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
           >
             <button
               type="button"
-              aria-label="关闭专辑弹窗"
+              aria-label="Close popup"
               onClick={() => setSelectedDiscovery(null)}
-              className="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-zinc-900 text-zinc-400 shadow-lg transition-all hover:scale-110 hover:border-white/40 hover:text-white"
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[#1c1c1c] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[#ece8e1]"
             >
-              <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              <X className="h-2.5 w-2.5" strokeWidth={2} />
             </button>
-            <div className="flex gap-4">
-              <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-zinc-800 shadow-inner relative">
-                <AlbumArtImage 
+            <div className="flex gap-3">
+              <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-black/40 relative border border-white/[0.04]">
+                <AlbumArtImage
                   artist={selectedDiscovery.artistName}
                   album={selectedDiscovery.albumTitle}
                   className="absolute inset-0 w-full h-full"
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold truncate text-white text-base">{selectedDiscovery.albumTitle}</p>
-                <p className="text-zinc-400 truncate text-xs uppercase tracking-wider mb-1">{selectedDiscovery.artistName}</p>
-                <p className="text-zinc-500 text-xs">
-                  {selectedDiscovery.releaseYear} · {selectedDiscovery.countryCode} / {selectedDiscovery.cityName}
+                <p className="font-serif font-semibold truncate text-[#ece8e1] text-sm">{selectedDiscovery.albumTitle}</p>
+                <p className="text-[#5a5854] truncate text-xs mt-0.5">{selectedDiscovery.artistName}</p>
+                <p className="text-[#5a5854] text-[10px] mt-1 tabular-nums font-mono">
+                  {selectedDiscovery.releaseYear} · {selectedDiscovery.countryCode}/{selectedDiscovery.cityName}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-1.5">
             <button
               type="button"
               onClick={() => {
                  void onMarkHeardRef.current(selectedDiscovery);
               }}
               disabled={!isAuthenticatedRef.current}
-              className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                isSelectedDiscoveryHeard 
-                  ? "bg-red-900/80 hover:bg-red-800 text-red-100" 
-                  : "bg-emerald-600 hover:bg-emerald-500"
+              className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                isSelectedDiscoveryHeard
+                  ? "bg-[#8a4a5a]/20 text-[#8a4a5a]/80 hover:bg-[#8a4a5a]/30"
+                  : "bg-[#4a8a6a]/20 text-[#4a8a6a]/80 hover:bg-[#4a8a6a]/30 border border-[#4a8a6a]/10"
               }`}
             >
-              {!isAuthenticatedRef.current ? "登录后可标记" : isSelectedDiscoveryHeard ? "Heard (Undo)" : "Mark Heard"}
+              {!isAuthenticatedRef.current ? "Login to mark" : isSelectedDiscoveryHeard ? "Heard (Undo)" : "Mark Heard"}
             </button>
             <button
               type="button"
               onClick={() => onToggleFavoriteRef.current(selectedDiscovery)}
-              className="flex-1 rounded-md bg-zinc-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-600"
+              className="flex-1 rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-[#5a5854] transition-all hover:bg-white/[0.06] hover:text-[#ece8e1] border border-white/[0.04]"
             >
-              {favoritesRef.current.some(f => 
-                  f.id === selectedDiscovery.id || 
+              {favoritesRef.current.some(f =>
+                  f.id === selectedDiscovery.id ||
                   (f.albumTitle === selectedDiscovery.albumTitle && f.artistName === selectedDiscovery.artistName)
-                ) ? "取消收藏" : "收藏"}
+                ) ? "Unfavorite" : "Favorite"}
             </button>
           </div>
           </motion.div>
@@ -1893,33 +1894,34 @@ export function WorldMap({
 
       <AnimatePresence mode="wait">
       {selectedUserRecord ? (
-        <motion.div 
+        <motion.div
             key={`user-record-popup-${selectedUserRecord.id}`}
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-zinc-200 backdrop-blur-xl shadow-2xl sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[320px]"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[#141414] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
         >
           <button
             type="button"
-            aria-label="关闭听过记录弹窗"
+            aria-label="Close popup"
             onClick={() => setSelectedUserRecordId(null)}
-            className="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-zinc-900 text-zinc-400 shadow-lg transition-all hover:scale-110 hover:border-white/40 hover:text-white"
+            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[#1c1c1c] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[#ece8e1]"
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <X className="h-2.5 w-2.5" strokeWidth={2} />
           </button>
-          <div className="flex gap-4 items-center">
-            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border-2 border-emerald-500 shadow-glow relative">
-              <AlbumArtImage 
+          <div className="flex gap-3 items-center">
+            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[#4a8a6a]/50 ring-offset-1 ring-offset-[#0c0c0c] relative">
+              <AlbumArtImage
                 artist={selectedUserRecord.artistGeo.artistName}
                 album={selectedUserRecord.albumTitle}
                 className="absolute inset-0 w-full h-full"
               />
             </div>
             <div>
-              <p className="font-bold text-emerald-400">{selectedUserRecord.albumTitle}</p>
-              <p className="text-zinc-400 text-xs uppercase tracking-wider">{selectedUserRecord.artistGeo.artistName}</p>
-              <p className="text-zinc-500 text-xs mt-1">
+              <p className="font-serif font-semibold text-sm text-[#4a8a6a]/90">{selectedUserRecord.albumTitle}</p>
+              <p className="text-[#5a5854] text-xs mt-0.5">{selectedUserRecord.artistGeo.artistName}</p>
+              <p className="text-[#5a5854] text-[10px] mt-0.5 tabular-nums font-mono">
                   {getRecordYear(selectedUserRecord)}
               </p>
             </div>

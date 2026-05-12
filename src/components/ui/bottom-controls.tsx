@@ -27,105 +27,97 @@ export function BottomControls({
 
   return (
     <motion.div
-      initial={{ y: 200, opacity: 0 }}
+      initial={{ y: 160, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
+      transition={{ delay: 0.6, type: "spring", damping: 22 }}
       className="fixed bottom-6 left-0 right-0 z-40 flex justify-center pointer-events-none px-4"
-      transition={{ delay: 0.5 }}
     >
-      <motion.div 
+      <motion.div
         layout
         initial={false}
         animate={{
-          borderRadius: isExpanded ? 32 : 24,
+          borderRadius: isExpanded ? 16 : 9999,
           width: isExpanded ? "100%" : 180,
-          maxWidth: isExpanded ? 896 : 180,
-          height: isExpanded ? 120 : 36,
+          maxWidth: isExpanded ? 720 : 180,
+          height: isExpanded ? 100 : 34,
         }}
-        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-        className="pointer-events-auto flex flex-col justify-center bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden relative"
+        transition={{ type: "spring", bounce: 0.12, duration: 0.6 }}
+        className="pointer-events-auto flex flex-col justify-center bg-[#141414]/90 border border-white/[0.06] shadow-xl shadow-black/40 overflow-hidden relative"
       >
         <AnimatePresence initial={false}>
           {!isExpanded ? (
-            <motion.button 
+            <motion.button
               key="collapsed"
-              initial={{ opacity: 0, filter: "blur(4px)" }}
-              animate={{ opacity: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, filter: "blur(4px)" }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
               onClick={() => setIsExpanded(true)}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-2 w-[180px] h-[36px] text-zinc-300 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer"
+              className="absolute inset-0 flex items-center justify-center gap-2 text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.02] transition-colors cursor-pointer"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70 group-hover:opacity-100 flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 flex-shrink-0">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/>
                 <line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
-              <span className="text-[13px] font-medium tracking-wide whitespace-nowrap">
-                {timelineRange.min} - {timelineRange.max}
+              <span className="text-xs font-mono tracking-wide whitespace-nowrap tabular-nums text-[#b0aaa0]">
+                {timelineRange.min} — {timelineRange.max}
               </span>
-              <svg className="ml-1 opacity-50 group-hover:opacity-100 transition-transform -rotate-90 group-hover:-translate-y-0.5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
             </motion.button>
           ) : (
-            <motion.div 
+            <motion.div
               key="expanded"
-              initial={{ opacity: 0, filter: "blur(4px)" }}
-              animate={{ opacity: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, filter: "blur(4px)" }}
-              transition={{ duration: 0.2 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-6 flex flex-col justify-between w-full h-[120px] min-w-[300px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="absolute inset-0 p-4 flex flex-col justify-between"
             >
-              <header className="flex w-full items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent whitespace-nowrap">
-                    {timelineRange.min} - {timelineRange.max}
+              <div className="flex w-full items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-sm font-serif font-semibold text-[#ece8e1] tabular-nums tracking-tight">
+                    {timelineRange.min} — {timelineRange.max}
                   </h2>
-                  <div className="h-4 w-[1px] bg-white/20 flex-shrink-0" />
-                  <div className="flex gap-4 text-xs font-medium text-zinc-400 hidden md:flex whitespace-nowrap">
-                    <span className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                      {recordsCount} {t.controls.records}
-                    </span>
-                    <span>•</span>
-                    <span>{yearSummary?.replace("No records", t.library.emptyHistory)}</span>
+                  <div className="h-3 w-px bg-white/[0.06]" />
+                  <div className="flex gap-2 text-[11px] font-medium text-[#9a948c]">
+                    <span>{recordsCount} {t.controls.records}</span>
+                    <span className="text-white/[0.04]">/</span>
+                    <span className="font-mono text-[#9a948c]">{yearSummary?.replace("No records", "") || ""}</span>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsExpanded(false)}
-                  className="flex items-center justify-center p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+                  className="p-1 rounded-md hover:bg-white/[0.04] text-[#9a948c] hover:text-[#b0aaa0] transition-all flex-shrink-0"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform rotate-90 hover:translate-y-0.5 transition-transform">
-                    <polyline points="9 18 15 12 9 6" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="18 15 12 9 6 15" />
                   </svg>
                 </button>
-              </header>
+              </div>
 
-              <div className="w-full space-y-4">
-                <div className="relative h-6 w-full flex items-center px-1">
-                  <Slider.Root
-                    className="relative flex items-center select-none touch-none w-full h-6"
-                    value={[timelineRange.min, timelineRange.max]}
-                    min={minYear}
-                    max={maxYear}
-                    step={1}
-                    minStepsBetweenThumbs={1}
-                    onValueChange={([min, max]) => setTimelineRange({ min, max })}
-                  >
-                    <Slider.Track className="bg-white/10 relative grow rounded-full h-1.5">
-                      <Slider.Range className="absolute bg-gradient-to-r from-emerald-500/80 to-cyan-500/80 rounded-full h-full shadow-[0_0_10px_rgba(52,211,153,0.3)]" />
-                    </Slider.Track>
-                    <Slider.Thumb
-                      className="block w-4 h-4 bg-white border border-emerald-500 rounded-full shadow-md transition-transform hover:scale-125 focus:outline-none cursor-grab active:cursor-grabbing"
-                      aria-label="Minimum Year"
-                    />
-                    <Slider.Thumb
-                      className="block w-4 h-4 bg-white border border-cyan-500 rounded-full shadow-md transition-transform hover:scale-125 focus:outline-none cursor-grab active:cursor-grabbing"
-                      aria-label="Maximum Year"
-                    />
-                  </Slider.Root>
-                </div>
+              <div className="w-full mt-1">
+                <Slider.Root
+                  className="relative flex items-center select-none touch-none w-full h-4"
+                  value={[timelineRange.min, timelineRange.max]}
+                  min={minYear}
+                  max={maxYear}
+                  step={1}
+                  minStepsBetweenThumbs={1}
+                  onValueChange={([min, max]) => setTimelineRange({ min, max })}
+                >
+                  <Slider.Track className="bg-white/[0.06] relative grow rounded-full h-[3px]">
+                    <Slider.Range className="absolute bg-[#c9a04a]/60 rounded-full h-full" />
+                  </Slider.Track>
+                  <Slider.Thumb
+                    className="block w-3 h-3 bg-[#ece8e1] border border-[#c9a04a]/40 rounded-full shadow-sm transition-transform hover:scale-125 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#c9a04a]/40 cursor-grab active:cursor-grabbing"
+                    aria-label="Minimum Year"
+                  />
+                  <Slider.Thumb
+                    className="block w-3 h-3 bg-[#ece8e1] border border-[#c9a04a]/40 rounded-full shadow-sm transition-transform hover:scale-125 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#c9a04a]/40 cursor-grab active:cursor-grabbing"
+                    aria-label="Maximum Year"
+                  />
+                </Slider.Root>
               </div>
             </motion.div>
           )}

@@ -80,10 +80,10 @@ type LibraryDrawerProps = {
   onLocateRecord: (record: UserRecord) => void;
 };
 
-export function LibraryDrawer({ 
-  isOpen, 
-  onClose, 
-  favorites, 
+export function LibraryDrawer({
+  isOpen,
+  onClose,
+  favorites,
   records,
   onToggleFavorite,
   onMarkHeard,
@@ -125,111 +125,115 @@ export function LibraryDrawer({
       return areaMatch && tagMatch;
     });
   }, [records, normalizedArea, normalizedTag]);
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/50"
           />
-          
+
           {/* Drawer */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-zinc-950 border-l border-white/10 shadow-2xl flex flex-col"
+            transition={{ type: "spring", damping: 30, stiffness: 220 }}
+            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-[#0c0c0c]/95 border-l border-white/[0.06] shadow-2xl shadow-black/50 flex flex-col"
           >
-            <div className="flex items-center justify-between p-6 border-b border-white/5">
-              <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.04]">
+              <h2 className="text-base font-serif font-semibold text-[#ece8e1] tracking-tight">
                 {t.library.title}
               </h2>
-              <button 
+              <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-md hover:bg-white/[0.04] text-[#9a948c] hover:text-[#ece8e1] transition-all"
               >
-                <X size={20} />
+                <X size="16" />
               </button>
             </div>
 
-            <div className="px-6 py-3 border-b border-white/5 flex flex-wrap gap-3 items-center text-sm text-zinc-200">
-              <div className="flex items-center gap-2 text-zinc-400">
-                <Filter size={14} /> 筛选
+            <div className="px-6 py-3 border-b border-white/[0.04] flex flex-wrap gap-2 items-center text-sm">
+              <div className="flex items-center gap-1.5 text-[#9a948c]">
+                <Filter size="12" />
+                <span className="text-[10px] tracking-wide uppercase">Filter</span>
               </div>
               <input
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
-                placeholder="按标签 (MB 或个人标签)"
-                className="bg-zinc-900 border border-white/10 rounded px-3 py-1 text-sm text-white placeholder:text-zinc-500"
+                placeholder="By tag"
+                className="bg-black/40 border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-[#ece8e1] placeholder:text-[#9a948c] outline-none focus:border-[#c9a04a]/30 transition-all"
               />
               <input
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
-                placeholder="按地区 (国家/城市/代码)"
-                className="bg-zinc-900 border border-white/10 rounded px-3 py-1 text-sm text-white placeholder:text-zinc-500"
+                placeholder="By region"
+                className="bg-black/40 border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-[#ece8e1] placeholder:text-[#9a948c] outline-none focus:border-[#c9a04a]/30 transition-all"
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
               {/* Favorites Section */}
               <section>
-                <div className="flex items-center gap-2 mb-4 text-pink-400">
-                  <Heart size={18} />
-                  <h3 className="font-semibold text-sm uppercase tracking-wider">{t.library.favorites} ({favorites.length})</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <Heart size="14" className="text-[#8a4a5a]/60" />
+                  <h3 className="font-medium text-xs uppercase tracking-[0.1em] text-[#8a4a5a]/80">
+                    {t.library.favorites} ({favorites.length})
+                  </h3>
                 </div>
                 {filteredFavorites.length === 0 ? (
-                  <p className="text-sm text-zinc-500 italic">{t.library.emptyFavorites}</p>
+                  <p className="text-sm text-[#9a948c]">{t.library.emptyFavorites}</p>
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="flex flex-col gap-2">
                     {filteredFavorites.map(album => (
-                      <div key={album.id} className="flex gap-3 p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
-                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-zinc-800">
-                          <AlbumArtImage 
+                      <div key={album.id} className="flex gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.06] transition-all group">
+                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-black/40 shadow-sm">
+                          <AlbumArtImage
                             artist={album.artistName}
                             album={album.albumTitle}
                             className="h-full w-full object-cover"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate text-white">{album.albumTitle}</p>
-                          <p className="text-xs text-zinc-400 truncate">{album.artistName}</p>
+                          <p className="font-medium text-sm truncate text-[#ece8e1]">{album.albumTitle}</p>
+                          <p className="text-xs text-[#9a948c] truncate">{album.artistName}</p>
                           {buildAlbumTags(album).length ? (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {buildAlbumTags(album).map((tag) => (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {buildAlbumTags(album).slice(0, 4).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.03] text-[#9a948c] border border-white/[0.04]"
                                 >
                                   {tag}
                                 </span>
                               ))}
                             </div>
                           ) : null}
-                          <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button 
-                               onClick={() => onMarkHeard(album)}
-                               className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 hover:bg-emerald-500/30"
-                             >
-                               Mark Heard
-                             </button>
-                              <button 
-                                onClick={() => onLocateFavorite(album)}
-                                className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 hover:bg-blue-500/30"
-                              >
-                                定位到地图
-                              </button>
-                             <button 
-                               onClick={() => onToggleFavorite(album)}
-                               className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/20 hover:bg-red-500/30"
-                             >
-                               Unfavorite
-                             </button>
+                          <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            <button
+                              onClick={() => onMarkHeard(album)}
+                              className="text-[10px] bg-[#4a8a6a]/15 text-[#4a8a6a]/80 px-2 py-0.5 rounded border border-[#4a8a6a]/15 hover:bg-[#4a8a6a]/25 hover:text-[#4a8a6a] transition-all font-medium"
+                            >
+                              Mark Heard
+                            </button>
+                            <button
+                              onClick={() => onLocateFavorite(album)}
+                              className="text-[10px] bg-white/[0.04] text-[#9a948c] px-2 py-0.5 rounded border border-white/[0.04] hover:text-[#ece8e1] hover:bg-white/[0.06] transition-all font-medium"
+                            >
+                              Locate
+                            </button>
+                            <button
+                              onClick={() => onToggleFavorite(album)}
+                              className="text-[10px] bg-[#8a4a5a]/15 text-[#8a4a5a]/80 px-2 py-0.5 rounded border border-[#8a4a5a]/15 hover:bg-[#8a4a5a]/25 hover:text-[#8a4a5a] transition-all font-medium"
+                            >
+                              Unfavorite
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -240,33 +244,35 @@ export function LibraryDrawer({
 
               {/* History Section */}
               <section>
-                <div className="flex items-center gap-2 mb-4 text-emerald-400">
-                  <History size={18} />
-                  <h3 className="font-semibold text-sm uppercase tracking-wider">{t.library.history} ({filteredRecords.length})</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <History size="14" className="text-[#4a8a6a]/60" />
+                  <h3 className="font-medium text-xs uppercase tracking-[0.1em] text-[#4a8a6a]/80">
+                    {t.library.history} ({filteredRecords.length})
+                  </h3>
                 </div>
                 {filteredRecords.length === 0 ? (
-                  <p className="text-sm text-zinc-500 italic">{t.library.emptyHistory}</p>
+                  <p className="text-sm text-[#9a948c]">{t.library.emptyHistory}</p>
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="flex flex-col gap-2">
                     {filteredRecords.slice(0, 20).map(record => (
-                      <div key={record.id} className="flex gap-3 p-3 rounded-lg bg-emerald-900/10 border border-emerald-500/10 hover:bg-emerald-900/20 transition-colors group relative">
-                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-zinc-800 grayscale-[0.5]">
-                          <AlbumArtImage 
+                      <div key={record.id} className="flex gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.06] transition-all group relative">
+                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-black/40 shadow-sm">
+                          <AlbumArtImage
                             artist={record.artistGeo.artistName}
                             album={record.albumTitle}
                             className="h-full w-full object-cover"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate text-white">{record.albumTitle}</p>
-                          <p className="text-xs text-zinc-400 truncate">{record.artistGeo.artistName}</p>
-                          <p className="text-[10px] text-zinc-600 mt-1">{record.releaseYear}</p>
+                          <p className="font-medium text-sm truncate text-[#ece8e1]">{record.albumTitle}</p>
+                          <p className="text-xs text-[#9a948c] truncate">{record.artistGeo.artistName}</p>
+                          <p className="text-[10px] text-[#9a948c] mt-1 tabular-nums">{record.releaseYear}</p>
                           {buildRecordTags(record).length ? (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {buildRecordTags(record).map((tag) => (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {buildRecordTags(record).slice(0, 4).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-200 border border-blue-500/20"
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.03] text-[#9a948c] border border-white/[0.04]"
                                 >
                                   {tag}
                                 </span>
@@ -274,20 +280,20 @@ export function LibraryDrawer({
                             </div>
                           ) : null}
                         </div>
-                        <div className="flex flex-col gap-1 items-end justify-center opacity-0 group-hover:opacity-100 transition-opacity mr-6">
+                        <div className="flex flex-col gap-1.5 items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
                           <button
                             onClick={() => onLocateRecord(record)}
-                            className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/20 hover:bg-blue-500/30"
+                            className="text-[10px] bg-white/[0.04] text-[#9a948c] px-2 py-0.5 rounded border border-white/[0.04] hover:text-[#ece8e1] hover:bg-white/[0.06] transition-all font-medium"
                           >
-                            定位
+                            Locate
                           </button>
                         </div>
                         <button
                           onClick={() => onUnmark(record)}
-                          className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-red-400 hover:bg-zinc-700 transition"
+                          className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded bg-white/[0.03] text-[#9a948c] hover:text-[#8a4a5a] hover:bg-[#8a4a5a]/10 border border-transparent hover:border-[#8a4a5a]/15"
                           title="Remove from history"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size="12" />
                         </button>
                       </div>
                     ))}

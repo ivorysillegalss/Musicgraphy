@@ -41,44 +41,45 @@ export function MbTokenModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[120] grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[120] grid place-items-center bg-black/60 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 8 }}
+            initial={{ scale: 0.96, opacity: 0, y: 8 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 8 }}
-            className="w-full max-w-lg overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl"
+            exit={{ scale: 0.96, opacity: 0, y: 8 }}
+            transition={{ type: "spring", damping: 26, stiffness: 340 }}
+            className="w-full max-w-lg overflow-hidden rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl shadow-black/30"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5 backdrop-blur">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.04]">
               <div>
-                <h2 className="text-lg font-semibold text-white">MusicBrainz Tokens</h2>
-                <p className="text-xs text-zinc-400">粘贴 1-8 个用户 MB tokens，用换行或逗号分隔。</p>
+                <h2 className="text-base font-serif font-semibold text-[#ece8e1]">MusicBrainz Tokens</h2>
+                <p className="text-xs text-[#9a948c] mt-0.5">Paste 1-8 user MB tokens, separated by newlines or commas.</p>
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-2 text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-md text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="rounded-xl border border-white/5 bg-black/30 p-4 text-sm text-zinc-300 flex items-start gap-3">
-                <Info className="h-4 w-4 mt-0.5 text-amber-300" />
-                <div className="space-y-1">
-                  <p>直接使用 MB Web Service 时，每个 token 绑定到用户，并有速率限制。</p>
-                  <p>这里保存的 token 只用于你的搜索；未提供时会回退匿名/全局 token。</p>
+              <div className="rounded-lg border border-white/[0.04] bg-black/20 p-4 text-sm flex items-start gap-3">
+                <Info className="h-4 w-4 mt-0.5 text-[#c9a04a]/60 flex-shrink-0" />
+                <div className="space-y-1 text-xs leading-relaxed text-[#9a948c]">
+                  <p>Each token is tied to a user and has rate limits when using the MB Web Service.</p>
+                  <p>Tokens saved here are only used for your searches; if not provided, the system will fall back to anonymous/global tokens.</p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-sm text-indigo-100">
+              <div className="rounded-lg border border-[#5a7a8a]/15 bg-[#5a7a8a]/[0.03] p-3.5 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs leading-5">可直接通过 MusicBrainz OAuth 绑定，自动获取并续期 access token。</p>
+                  <p className="text-xs text-[#9a948c] leading-relaxed">Connect via MusicBrainz OAuth to automatically obtain and renew an access token.</p>
                   <button
                     onClick={() => {
                       if (onConnectOAuth) {
@@ -86,25 +87,25 @@ export function MbTokenModal({
                       }
                     }}
                     disabled={!oauthEnabled || isConnectingOAuth}
-                    className="rounded-full bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg bg-[#5a7a8a]/80 px-3 py-1.5 text-xs font-medium text-[#ece8e1] hover:bg-[#5a7a8a] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
                   >
-                    {isConnectingOAuth ? "连接中..." : "连接 OAuth"}
+                    {isConnectingOAuth ? "Connecting..." : "Connect OAuth"}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-400">MB tokens（每行或逗号分隔）</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-[#9a948c]">MB Tokens (one per line or comma-separated)</label>
                 <textarea
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
                   rows={5}
-                  className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-600 resize-none"
-                  placeholder="tokenA\ntokenB\ntokenC"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2.5 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c] resize-none"
+                  placeholder={"tokenA\ntokenB\ntokenC"}
                 />
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>已填 {tokens.length} 个，最多 8 个。</span>
-                  <span>输入会在保存时自动清洗与截断。</span>
+                <div className="flex items-center justify-between text-[11px] text-[#9a948c]">
+                  <span>{tokens.length} entered, max 8.</span>
+                  <span>Input is cleaned and truncated on save.</span>
                 </div>
               </div>
 
@@ -112,8 +113,8 @@ export function MbTokenModal({
                 <div
                   className={`rounded-lg border px-3 py-2 text-xs ${
                     message.tone === "success"
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      : "border-red-500/30 bg-red-500/10 text-red-300"
+                      ? "border-[#4a8a6a]/20 bg-[#4a8a6a]/[0.04] text-[#4a8a6a]/90"
+                      : "border-[#8a4a5a]/20 bg-[#8a4a5a]/[0.04] text-[#8a4a5a]/90"
                   }`}
                 >
                   {message.text}
@@ -121,21 +122,21 @@ export function MbTokenModal({
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-zinc-950/60">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/[0.04] bg-black/10">
               <button
                 onClick={onClose}
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
+                className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all rounded-lg"
                 disabled={isSaving}
               >
-                取消
+                Cancel
               </button>
               <button
                 onClick={() => void onSave()}
                 disabled={isSaving || isConnectingOAuth}
-                className="flex items-center gap-2 rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-indigo-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg bg-[#c9a04a] px-4 py-1.5 text-[11px] font-medium text-[#0c0c0c] hover:bg-[#c9a04a]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
-                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>保存</span>
+                {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>Save</span>
               </button>
             </div>
           </motion.div>

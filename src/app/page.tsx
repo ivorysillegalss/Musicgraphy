@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
 import { Library } from "lucide-react";
 
 import { AppNavbar } from "@/components/ui/app-navbar";
@@ -12,6 +13,8 @@ import { GuideModal } from "@/components/ui/guide-modal";
 import { OnboardingTour } from "@/components/ui/onboarding-tour";
 import { LibraryDrawer } from "@/components/ui/library-drawer";
 import { MbTokenModal } from "@/components/ui/mb-token-modal";
+import { NeteaseImportModal } from "@/components/ui/netease-import-modal";
+import { RecordShelfView } from "@/components/ui/record-shelf-view";
 import { WorldMap } from "@/components/world-map";
 import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
 import {
@@ -91,6 +94,8 @@ export default function Home() {
     max: MAX_RELEASE_YEAR,
   });
   const [isMbTokenOpen, setIsMbTokenOpen] = useState(false);
+  const [isNeteaseImportOpen, setIsNeteaseImportOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"map" | "shelf">("map");
   const [mbTokensInput, setMbTokensInput] = useState("");
   const [isSavingMbTokens, setIsSavingMbTokens] = useState(false);
   const [isConnectingMbOAuth, setIsConnectingMbOAuth] = useState(false);
@@ -683,28 +688,59 @@ export default function Home() {
       .map(([countryCode]) => countryCode);
   }, [filteredRecords]);
 
+  function handleScoreUpdate(recordId: string, newScore: number) {
+    setRecords((prev) =>
+      prev.map((r) => (r.id === recordId ? { ...r, score: newScore } : r)),
+    );
+  }
+
   return (
-    <main className="relative h-screen w-full overflow-hidden bg-black text-zinc-100 font-sans selection:bg-cyan-500/30">
-      <div className="absolute inset-0 z-0">
-        <WorldMap
-          userRecords={filteredRecords}
-          isAuthenticated={localTestMode || Boolean(session)}
-          userId={session?.user.id}
-          favorites={favorites}
-          preferredCountries={preferredCountries}
-          yearRange={timelineRange}
-          externalSelection={pendingMapSelection}
-          onExternalSelectionHandled={() => setPendingMapSelection(null)}
-          onToggleFavorite={toggleFavorite}
-          onMarkHeard={markAlbumHeard}
-        />
-      </div>
+    <main className="relative h-screen w-full overflow-hidden bg-[#0c0c0c] text-[#ece8e1] font-sans">
+      <AnimatePresence mode="wait">
+        {viewMode === "map" ? (
+          <motion.div
+            key="map"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 z-0"
+          >
+            <WorldMap
+              userRecords={filteredRecords}
+              isAuthenticated={localTestMode || Boolean(session)}
+              userId={session?.user.id}
+              favorites={favorites}
+              preferredCountries={preferredCountries}
+              yearRange={timelineRange}
+              externalSelection={pendingMapSelection}
+              onExternalSelectionHandled={() => setPendingMapSelection(null)}
+              onToggleFavorite={toggleFavorite}
+              onMarkHeard={markAlbumHeard}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="shelf"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 z-0"
+          >
+            <RecordShelfView records={filteredRecords} onScoreUpdate={handleScoreUpdate} accessToken={session?.access_token} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AppNavbar
         userEmail={session?.user.email}
         isLocalMode={localTestMode}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenMbTokens={openMbTokenModal}
+        onOpenNeteaseImport={() => setIsNeteaseImportOpen(true)}
         onOpenManage={() => {
           router.push("/manage/discovery");
         }}
@@ -723,13 +759,13 @@ export default function Home() {
 
       <button
         onClick={() => setIsLibraryOpen(true)}
-        className="fixed bottom-32 right-6 z-40 flex items-center justify-center h-12 w-12 rounded-full bg-zinc-900/80 backdrop-blur-md border border-white/20 text-white shadow-xl hover:scale-110 hover:bg-zinc-800 transition-all group"
+        className="fixed bottom-32 right-6 z-40 flex items-center justify-center h-10 w-10 rounded-full border border-white/[0.06] bg-[#141414]/80 text-[#9a948c] shadow-lg shadow-black/30 hover:bg-[#1c1c1c] hover:text-[#ece8e1] hover:border-white/[0.1] transition-all group"
         title="Open Library"
       >
-        <Library size={20} className="group-hover:text-purple-400 transition-colors" />
+        <Library size="15" className="group-hover:text-[#c9a04a]/70 transition-colors" />
         {favorites.length > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] font-bold">
-            {favorites.length}
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#8a4a5a]/80 text-[8px] font-bold text-white">
+            {favorites.length > 99 ? "99+" : favorites.length}
           </span>
         )}
       </button>
@@ -737,12 +773,6 @@ export default function Home() {
       <OnboardingTour
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
-      />
-
-      <GuideModal
-        isOpen={isGuideOpen}
-        onClose={() => setIsGuideOpen(false)}
-        isConfigured={configured}
       />
 
       <GuideModal
@@ -777,6 +807,13 @@ export default function Home() {
         isConnectingOAuth={isConnectingMbOAuth}
         oauthEnabled={configured}
         message={mbTokenStatus}
+      />
+
+      <NeteaseImportModal
+        isOpen={isNeteaseImportOpen}
+        onClose={() => setIsNeteaseImportOpen(false)}
+        sessionToken={session?.access_token}
+        userId={session?.user.id}
       />
 
       <LibraryDrawer

@@ -71,7 +71,6 @@ export function SearchOverlay({
 
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
-      // Small timeout to allow animation to start/element to mount
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
@@ -143,8 +142,6 @@ export function SearchOverlay({
             setSearchMeta(meta);
             cacheRef.current.set(fullCacheKey, { ts: Date.now(), results: validResults, meta });
 
-            // External search may persist new rows into local discovery_pool.
-            // Drop stale local-only cache for the same query so the next local search refetches.
             if (useExternalSearch && validResults.length > 0) {
               const localOnlyCacheKey = `${key}|external:0`;
               cacheRef.current.delete(localOnlyCacheKey);
@@ -208,21 +205,19 @@ export function SearchOverlay({
     const heardKeySet = new Set(
       userRecords.map((record) => toKey(record.albumTitle, record.artistGeo.artistName))
     );
-    
-    // Add user records first
+
     filteredUserRecords.forEach((record) =>
       results.push({ type: "user", data: record })
     );
-    
-    // Add discovery albums, but filter out ones that are already in user records
+
     searchResults.forEach((album) => {
       const isAlreadyUserRecord = heardKeySet.has(toKey(album.albumTitle, album.artistName));
-      
+
       if (!isAlreadyUserRecord) {
         results.push({ type: "discovery", data: album });
       }
     });
-    
+
     return results;
   }, [filteredUserRecords, searchResults, userRecords]);
 
@@ -242,17 +237,18 @@ export function SearchOverlay({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 z-30 bg-black/30"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            initial={{ opacity: 0, scale: 0.96, y: -12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            exit={{ opacity: 0, scale: 0.96, y: -12 }}
+            transition={{ type: "spring", damping: 26, stiffness: 340 }}
             className="absolute left-1/2 top-24 z-40 w-full max-w-md -translate-x-1/2 flex flex-col gap-2 p-4"
           >
-            <div className="flex flex-col gap-2 rounded-xl bg-zinc-900/90 border border-white/10 p-3 shadow-2xl backdrop-blur-md">
+            <div className="flex flex-col gap-2 rounded-lg border border-white/[0.06] bg-[#141414]/95 p-3 shadow-xl shadow-black/40">
               <div className="flex items-center gap-2">
-                <Search className="w-5 h-5 text-purple-400 ml-1" />
+                <Search className="w-4 h-4 text-[#c9a04a]/60 ml-1 flex-shrink-0" />
                 <div className="flex-1 grid grid-cols-2 gap-2">
                   <input
                     ref={searchInputRef}
@@ -260,14 +256,14 @@ export function SearchOverlay({
                     value={artistQuery}
                     onChange={(e) => onArtistQueryChange(e.target.value)}
                     placeholder={t.search.artistOrBand}
-                    className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 focus:border-purple-400 focus:bg-purple-900/10 transition-colors rounded-lg font-mono"
+                    className="w-full bg-black/30 px-2.5 py-1.5 text-sm text-[#ece8e1] outline-none placeholder:text-[#9a948c] border border-white/[0.06] focus:border-[#c9a04a]/30 transition-all rounded-lg"
                   />
                   <input
                     type="text"
                     value={albumQuery}
                     onChange={(e) => onAlbumQueryChange(e.target.value)}
                     placeholder={t.search.albumName}
-                    className="w-full bg-transparent px-2 py-1 text-sm text-white outline-none placeholder:text-zinc-500 border border-white/10 focus:border-purple-400 focus:bg-purple-900/10 transition-colors rounded-lg font-mono"
+                    className="w-full bg-black/30 px-2.5 py-1.5 text-sm text-[#ece8e1] outline-none placeholder:text-[#9a948c] border border-white/[0.06] focus:border-[#c9a04a]/30 transition-all rounded-lg"
                   />
                 </div>
                 <button
@@ -275,26 +271,26 @@ export function SearchOverlay({
                     onArtistQueryChange("");
                     onAlbumQueryChange("");
                   }}
-                  className="p-1 hover:text-white text-zinc-500"
-                  title="清空"
+                  className="p-1.5 hover:text-[#ece8e1] text-[#9a948c] hover:bg-white/[0.04] rounded-md transition-all"
+                  title="Clear"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors"
-                  title="关闭"
+                  className="px-2 py-1 hover:bg-white/[0.04] rounded-md text-[#9a948c] hover:text-[#ece8e1] transition-all text-xs"
+                  title="Close"
                 >
-                  <span className="text-xs font-semibold">{t.search.escToClose.split(" ")[0]}</span>
+                  <span className="font-medium">Esc</span>
                 </button>
               </div>
             </div>
 
             {(availableTags.length > 0 || decadeOptions.length > 0) && (
-              <div className="flex flex-wrap gap-2 rounded-lg bg-zinc-900/80 border border-white/10 p-2 text-xs text-zinc-300">
+              <div className="flex flex-wrap gap-2 rounded-lg border border-white/[0.06] bg-[#141414]/80 p-2.5 text-xs backdrop-blur-sm">
                 {availableTags.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-zinc-500 mr-1">{t.search.tags}</span>
+                    <span className="text-[#9a948c] mr-1 text-[10px] tracking-wide uppercase">Tags</span>
                     {availableTags.map((tag) => {
                       const active = selectedTags.includes(tag);
                       return (
@@ -305,10 +301,10 @@ export function SearchOverlay({
                               active ? prev.filter((t) => t !== tag) : [...prev, tag]
                             );
                           }}
-                          className={`px-2 py-1 rounded-full border text-[11px] transition ${
+                          className={`px-2 py-0.5 rounded text-[10px] transition-all ${
                             active
-                              ? "border-purple-400 bg-purple-500/10 text-purple-300"
-                              : "border-white/10 bg-white/5 hover:border-white/30"
+                              ? "bg-[#c9a04a]/10 text-[#c9a04a]/80 border border-[#c9a04a]/20"
+                              : "border border-white/[0.04] bg-white/[0.02] hover:border-white/10 hover:text-[#b0aaa0] text-[#9a948c]"
                           }`}
                         >
                           {tag}
@@ -320,11 +316,11 @@ export function SearchOverlay({
 
                 {decadeOptions.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="text-zinc-500">{t.search.decade}</span>
+                    <span className="text-[#9a948c] text-[10px] tracking-wide uppercase">Decade</span>
                     <select
                       value={decadeFilter}
                       onChange={(e) => setDecadeFilter(e.target.value)}
-                      className="bg-zinc-800 border border-white/10 text-xs rounded px-2 py-1"
+                      className="bg-black/30 border border-white/[0.06] text-xs rounded px-2 py-1 text-[#b0aaa0] outline-none focus:border-[#c9a04a]/30"
                     >
                       <option value="">{t.controls.allYears}</option>
                       {decadeOptions.map((d) => (
@@ -335,27 +331,27 @@ export function SearchOverlay({
                 )}
 
                 <div className="flex items-center gap-2 flex-1 min-w-[140px]">
-                  <span className="text-zinc-500">{t.search.region}</span>
+                  <span className="text-[#9a948c] text-[10px] tracking-wide uppercase">Region</span>
                   <input
                     value={areaFilter}
                     onChange={(e) => setAreaFilter(e.target.value)}
-                    placeholder="国家/城市"
-                    className="bg-zinc-800 border border-white/10 text-xs rounded px-2 py-1 flex-1"
+                    placeholder="Country / City"
+                    className="bg-black/30 border border-white/[0.06] text-xs rounded px-2 py-1 flex-1 outline-none focus:border-[#c9a04a]/30 text-[#b0aaa0] placeholder:text-[#9a948c]"
                   />
                 </div>
               </div>
             )}
 
             {(artistQuery.trim() || albumQuery.trim()) && (
-              <div className="flex flex-col gap-1 rounded-xl bg-zinc-900/90 border border-white/10 p-2 shadow-2xl backdrop-blur-md max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col gap-1 rounded-lg border border-white/[0.06] bg-[#141414]/95 p-2 shadow-xl shadow-black/40 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 {searchMeta.shouldOfferExternalSearch && !useExternalSearch && (
-                  <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
-                    <p className="text-xs text-amber-200 mb-2">
+                  <div className="mb-1 rounded-lg border border-[#c9a04a]/15 bg-[#c9a04a]/[0.03] p-2.5">
+                    <p className="text-xs text-[#9a948c] mb-2">
                       {t.search.externalHelp}
                     </p>
                     <button
                       onClick={() => setUseExternalSearch(true)}
-                      className="rounded-md bg-amber-500/20 px-2 py-1 text-xs text-amber-100 hover:bg-amber-500/30 transition-colors"
+                      className="rounded bg-[#c9a04a]/10 px-2.5 py-1 text-[10px] text-[#c9a04a]/80 hover:bg-[#c9a04a]/20 transition-all border border-[#c9a04a]/15"
                     >
                       {t.search.externalSearch}
                     </button>
@@ -363,28 +359,31 @@ export function SearchOverlay({
                 )}
 
                 {searchMeta.externalSuppressedByCooldown ? (
-                  <div className="mb-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-xs text-zinc-300">
+                  <div className="mb-1 rounded-lg border border-white/[0.04] bg-black/20 p-2.5 text-xs text-[#9a948c]">
                     {t.search.cooldown}
                   </div>
                 ) : null}
 
                 {searchMeta.externalError ? (
-                  <div className="mb-2 rounded-lg border border-red-700/40 bg-red-950/30 p-2 text-xs text-red-200">
-                    {language === 'en' ? 'External search failed: ' : '第三方搜索失败: '}{searchMeta.externalError}
+                  <div className="mb-1 rounded-lg border border-[#8a4a5a]/20 bg-[#8a4a5a]/[0.04] p-2.5 text-xs text-[#8a4a5a]/70">
+                    {language === 'en' ? 'External search failed: ' : 'External search failed: '}{searchMeta.externalError}
                   </div>
                 ) : null}
 
                 {isSearching ? (
-                  <div className="p-4 text-center text-sm text-zinc-500">
-                    {t.search.searching}
+                  <div className="p-6 text-center text-sm text-[#9a948c]">
+                    <div className="inline-flex items-center gap-2">
+                      <div className="h-1 w-1 rounded-full bg-[#c9a04a]/60 animate-pulse" />
+                      {t.search.searching}
+                    </div>
                   </div>
                 ) : totalResults === 0 ? (
-                  <div className="p-4 text-center text-sm text-zinc-500">
+                  <div className="p-6 text-center text-sm text-[#9a948c]">
                     {t.search.notFound}
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       {paginatedResults.map((result, index) => {
                         if (result.type === "user") {
                           const record = result.data;
@@ -394,23 +393,23 @@ export function SearchOverlay({
                               onClick={() => {
                                 onSelectUserRecord(record);
                               }}
-                              className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-white/10 text-left transition-colors"
+                              className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-white/[0.03] text-left transition-all"
                             >
-                              <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-md bg-zinc-800">
-                                <div className="w-full h-full bg-purple-900/30 flex items-center justify-center text-xs text-purple-500 font-bold">
+                              <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg bg-black/40 border border-white/[0.04]">
+                                <div className="w-full h-full bg-[#4a8a6a]/10 flex items-center justify-center text-xs text-[#4a8a6a]/70 font-mono">
                                   {record.score}
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-white line-clamp-1">
+                                <div className="text-sm font-medium text-[#ece8e1] line-clamp-1">
                                   {record.albumTitle}
                                 </div>
-                                <div className="text-xs text-zinc-400 line-clamp-1">
+                                <div className="text-xs text-[#9a948c] line-clamp-1">
                                   {record.artistGeo.artistName}
                                 </div>
                               </div>
-                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 flex-shrink-0">
-                                我的记录
+                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-[#4a8a6a]/10 text-[#4a8a6a]/70 border border-[#4a8a6a]/10 flex-shrink-0 font-medium">
+                                My Record
                               </div>
                             </button>
                           );
@@ -422,9 +421,9 @@ export function SearchOverlay({
                               onClick={() => {
                                 onSelectDiscovery(album);
                               }}
-                              className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-white/10 text-left transition-colors"
+                              className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-white/[0.03] text-left transition-all"
                             >
-                              <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-md bg-zinc-800 relative">
+                              <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg bg-black/40 border border-white/[0.04] relative">
                                 <AlbumArtImage
                                   artist={album.artistName}
                                   album={album.albumTitle}
@@ -432,15 +431,15 @@ export function SearchOverlay({
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-white line-clamp-1">
+                                <div className="text-sm font-medium text-[#ece8e1] line-clamp-1">
                                   {album.albumTitle}
                                 </div>
-                                <div className="text-xs text-zinc-400 line-clamp-1">
-                                  {album.artistName} {album.cityName !== "Unknown" ? `· ${album.cityName}` : ""}
+                                <div className="text-xs text-[#9a948c] line-clamp-1">
+                                  {album.artistName}{album.cityName !== "Unknown" ? ` · ${album.cityName}` : ""}
                                 </div>
                               </div>
-                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-500/20 text-zinc-400 flex-shrink-0">
-                                {album.id.startsWith('mb-') ? 'MusicBrainz' : language === 'en' ? 'Discovery' : '发现'}
+                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.03] text-[#9a948c] border border-white/[0.04] flex-shrink-0 font-medium">
+                                {album.id.startsWith('mb-') ? 'MusicBrainz' : language === 'en' ? 'Discovery' : 'Discovery'}
                               </div>
                             </button>
                           );
@@ -449,21 +448,21 @@ export function SearchOverlay({
                     </div>
 
                     {totalPages > 1 && (
-                      <div className="flex items-center justify-between pt-2 mt-2 border-t border-white/10 px-2">
+                      <div className="flex items-center justify-between pt-2 mt-1 border-t border-white/[0.04] px-1">
                         <button
                           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
-                          className="p-1 rounded hover:bg-white/10 disabled:opacity-50 disabled:hover:bg-transparent text-zinc-400 hover:text-white transition-colors"
+                          className="p-1 rounded-md hover:bg-white/[0.04] disabled:opacity-30 disabled:hover:bg-transparent text-[#9a948c] hover:text-[#b0aaa0] transition-all"
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-xs text-[#9a948c] font-medium tabular-nums">
                           {currentPage} / {totalPages}
                         </span>
                         <button
                           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                           disabled={currentPage === totalPages}
-                          className="p-1 rounded hover:bg-white/10 disabled:opacity-50 disabled:hover:bg-transparent text-zinc-400 hover:text-white transition-colors"
+                          className="p-1 rounded-md hover:bg-white/[0.04] disabled:opacity-30 disabled:hover:bg-transparent text-[#9a948c] hover:text-[#b0aaa0] transition-all"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>

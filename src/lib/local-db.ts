@@ -134,6 +134,17 @@ async function initializeSchema() {
         updated_at text not null default (datetime('now'))
       )`,
       `create index if not exists idx_album_cover_cache_updated_at on album_cover_cache(updated_at desc)`,
+      `create table if not exists release_search_cache (
+        cache_key text primary key,
+        album_mbid text,
+        album_title text not null,
+        release_date text,
+        release_year integer,
+        artist_id text not null,
+        artist_name text not null,
+        not_found integer not null default 0,
+        updated_at text not null default (datetime('now'))
+      )`,
       `insert or ignore into users (id, email) values ('local-user', 'local@localhost')`,
     ],
     "write"

@@ -32,3 +32,15 @@ services:
         touch /app/public/covers/.write-test && rm -f /app/public/covers/.write-test
         exec node server.js
     restart: unless-stopped
+
+  netease-api:
+    build: /home/chenz/api-enhanced
+    ports:
+      - "3001:3000"
+    environment:
+      - HTTP_PROXY=http://host.docker.internal:7897
+      - HTTPS_PROXY=http://host.docker.internal:7897
+      - ALL_PROXY=http://host.docker.internal:7897
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
