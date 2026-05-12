@@ -152,7 +152,7 @@ function normalizeKeyPart(input: string | null | undefined) {
   return normalize(input)
     .toLowerCase()
     .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9 ]+/g, "")
+    .replace(/[^\p{L}\p{N} ]+/gu, "")
     .trim();
 }
 
@@ -161,7 +161,12 @@ function buildQueryTerm(artist: string, album: string, term: string) {
   return `${artist} ${album}`.trim();
 }
 
-function buildCacheKey(artist: string, album: string, term: string) {
+function buildCacheKey(artist: string, album: string, term: string, releaseId?: string | null) {
+  const normalizedReleaseId = normalize(releaseId);
+  if (normalizedReleaseId) {
+    return `release:${normalizedReleaseId}`;
+  }
+
   const artistKey = normalizeKeyPart(artist);
   const albumKey = normalizeKeyPart(album);
   if (artistKey && albumKey) {
@@ -243,7 +248,22 @@ function tryUpgradeItunesArtwork(url: string) {
     .replace("60x60bb", "1200x1200bb");
 }
 
-async function fetchFromItunes(term: string) {
+function normalizeExactLookup(value: string | null | undefined) {
+  return normalize(value)
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[“”"'`’‘\-_.,:;!?()[\]{}]/g, "")
+    .replace(/\.{3,}|…/g, "")
+    .trim();
+}
+
+function matchesExactLookup(candidate: string | null | undefined, expected: string | null | undefined) {
+  const actual = normalizeExactLookup(candidate);
+  const target = normalizeExactLookup(expected);
+  return Boolean(actual) && Boolean(target) && actual === target;
+}
+
+async function fetchFromItunes(artist: string, album: string, term: string) {
   const res = await fetch(
     `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=5`,
     {
@@ -258,10 +278,27 @@ async function fetchFromItunes(term: string) {
     results?: Array<{
       artworkUrl100?: string;
       artworkUrl60?: string;
+      collectionName?: string;
+      artistName?: string;
     }>;
   };
 
   return (data.results ?? [])
+    .filter((item) => {
+      if (artist && album) {
+        return (
+          matchesExactLookup(item.artistName, artist) &&
+          matchesExactLookup(item.collectionName, album)
+        );
+      }
+      if (album) {
+        return matchesExactLookup(item.collectionName, album);
+      }
+      if (artist) {
+        return matchesExactLookup(item.artistName, artist);
+      }
+      return true;
+    })
     .map((item) => item.artworkUrl100 ?? item.artworkUrl60 ?? "")
     .filter(Boolean)
     .map(tryUpgradeItunesArtwork);
@@ -325,7 +362,7 @@ async function fetchFromCoverArtArchive(artist: string, album: string, fallbackT
   return urls;
 }
 
-async function fetchFromDeezer(term: string) {
+async function fetchFromDeezer(artist: string, album: string, term: string) {
   const res = await fetch(
     `https://api.deezer.com/search/album?q=${encodeURIComponent(term)}&limit=3`,
     {
@@ -342,12 +379,72 @@ async function fetchFromDeezer(term: string) {
       cover_big?: string;
       cover_medium?: string;
       cover?: string;
+      title?: string;
+      artist?: { name?: string };
     }>;
   };
 
   return (data.data ?? [])
+    .filter((item) => {
+      if (artist && album) {
+        return (
+          matchesExactLookup(item.artist?.name, artist) &&
+          matchesExactLookup(item.title, album)
+        );
+      }
+      if (album) {
+        return matchesExactLookup(item.title, album);
+      }
+      if (artist) {
+        return matchesExactLookup(item.artist?.name, artist);
+      }
+      return true;
+    })
     .map((item) => item.cover_xl ?? item.cover_big ?? item.cover_medium ?? item.cover ?? "")
     .filter(Boolean);
+}
+
+async function fetchCoverArtArchiveByReleaseId(releaseId: string) {
+  const normalizedReleaseId = releaseId.trim();
+  if (!normalizedReleaseId) return [] as string[];
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const coverRes = await fetch(
+      `https://coverartarchive.org/release/${encodeURIComponent(normalizedReleaseId)}`,
+      {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 3600 },
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!coverRes.ok) return [] as string[];
+
+    const payload = (await coverRes.json()) as {
+      images?: Array<{
+        front?: boolean;
+        image?: string;
+        thumbnails?: {
+          large?: string;
+          small?: string;
+        };
+      }>;
+    };
+
+    const images = payload.images ?? [];
+    const ordered = [...images.filter((img) => img.front), ...images.filter((img) => !img.front)];
+
+    return ordered
+      .map((image) => image.thumbnails?.large ?? image.image ?? image.thumbnails?.small ?? "")
+      .filter(Boolean);
+  } catch {
+    return [] as string[];
+  }
 }
 
 async function readCoverCache(cacheKey: string) {
@@ -493,6 +590,7 @@ export async function lookupAlbumCover(options: {
   artist?: string | null;
   album?: string | null;
   term?: string | null;
+  releaseId?: string | null;
   forceRefresh?: boolean;
 }): Promise<CoverLookupResponse> {
   maybeTriggerCleanup();
@@ -500,9 +598,10 @@ export async function lookupAlbumCover(options: {
   const artist = normalize(options.artist);
   const album = normalize(options.album);
   const term = normalize(options.term);
+  const releaseId = normalize(options.releaseId);
   const queryTerm = buildQueryTerm(artist, album, term);
 
-  if (!queryTerm) {
+  if (!queryTerm && !releaseId) {
     return {
       found: false,
       source: null,
@@ -512,7 +611,7 @@ export async function lookupAlbumCover(options: {
     };
   }
 
-  const cacheKey = buildCacheKey(artist, album, queryTerm);
+  const cacheKey = buildCacheKey(artist, album, queryTerm, releaseId);
   const now = Date.now();
 
   if (!options.forceRefresh) {
@@ -537,8 +636,19 @@ export async function lookupAlbumCover(options: {
 
   const foundCandidates: Array<{ url: string; source: CoverSource }> = [];
 
+  if (releaseId) {
+    try {
+      const releaseCoverUrls = await fetchCoverArtArchiveByReleaseId(releaseId);
+      for (const url of releaseCoverUrls) {
+        foundCandidates.push({ url, source: "coverartarchive" });
+      }
+    } catch (error) {
+      console.error("Release cover lookup failed:", error);
+    }
+  }
+
   try {
-    const itunesUrls = await fetchFromItunes(queryTerm);
+    const itunesUrls = await fetchFromItunes(artist, album, queryTerm || releaseId);
     for (const url of itunesUrls) {
       foundCandidates.push({ url, source: "itunes" });
     }
@@ -548,7 +658,7 @@ export async function lookupAlbumCover(options: {
 
   // If iTunes already found a good quality cover, we can skip CoverArtArchive and Deezer
   // which might be significantly slower or rate-limited.
-  if (foundCandidates.length === 0) {
+  if (foundCandidates.length === 0 && !releaseId) {
     try {
       const coverArtUrls = await fetchFromCoverArtArchive(artist, album, queryTerm);
       for (const url of coverArtUrls) {
@@ -559,9 +669,9 @@ export async function lookupAlbumCover(options: {
     }
   }
 
-  if (foundCandidates.length === 0) {
+  if (foundCandidates.length === 0 && !releaseId) {
     try {
-      const deezerUrls = await fetchFromDeezer(queryTerm);
+      const deezerUrls = await fetchFromDeezer(artist, album, queryTerm);
       for (const url of deezerUrls) {
         foundCandidates.push({ url, source: "deezer" });
       }

@@ -24,10 +24,11 @@ export async function GET(request: Request) {
   const artist = normalize(searchParams.get("artist"));
   const album = normalize(searchParams.get("album"));
   const term = normalize(searchParams.get("term"));
+  const releaseId = normalize(searchParams.get("releaseId"));
   const forceRefresh = searchParams.get("refresh") === "1";
   const queryTerm = buildTerm(artist, album, term);
 
-  if (!queryTerm) {
+  if (!queryTerm && !releaseId) {
     const empty: CoverLookupResponse = {
       found: false,
       source: null,
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
       artist,
       album,
       term: queryTerm,
+      releaseId,
       forceRefresh,
     });
     return NextResponse.json(response);

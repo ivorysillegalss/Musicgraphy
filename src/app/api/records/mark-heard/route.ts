@@ -120,16 +120,15 @@ export async function DELETE(request: Request) {
     const user = await getLocalAuthUser(request);
     const body = await request.json();
 
-    if (!body?.albumTitle?.trim() || !body?.artistName?.trim()) {
-      throw new ApiHttpError(400, "VALIDATION_ERROR", "albumTitle and artistName are required.");
+    if (!body?.recordId) {
+      throw new ApiHttpError(400, "VALIDATION_ERROR", "recordId is required.");
     }
 
     await dbRun(
       `delete from user_records
        where user_id = ?
-         and lower(trim(album_title)) = lower(trim(?))
-         and lower(trim(artist_name)) = lower(trim(?))`,
-      [user.id, body.albumTitle.trim(), body.artistName.trim()]
+         and id = ?`,
+      [user.id, body.recordId]
     );
 
     return NextResponse.json({ success: true }, { status: 200 });

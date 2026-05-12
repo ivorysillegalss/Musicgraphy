@@ -193,6 +193,20 @@ function normalizeKey(title: string, artist: string) {
   return `${title.trim().toLowerCase()}::${artist.trim().toLowerCase()}`;
 }
 
+function normalizeSearchIdentity(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\.{3,}|…/g, "")
+    .replace(/[“”"'`’‘\-_.,:;!?()[\]{}]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildSearchDedupKey(title: string, artist: string) {
+  return `${normalizeSearchIdentity(title)}::${normalizeSearchIdentity(artist)}`;
+}
+
 function normalizeText(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
@@ -622,7 +636,7 @@ export async function GET(request: Request) {
 
             // Deduplicate for current response, but always persist to local pool.
             const exists = results.some(
-              (r) => normalizeKey(r.albumTitle, r.artistName) === normalizeKey(item.albumTitle, item.artistName)
+              (r) => buildSearchDedupKey(r.albumTitle, r.artistName) === buildSearchDedupKey(item.albumTitle, item.artistName)
             );
             if (!exists) {
               results.push(item);
@@ -655,7 +669,7 @@ export async function GET(request: Request) {
 
   const best = new Map<string, SearchResult>();
   for (const item of results) {
-    const key = normalizeKey(item.albumTitle, item.artistName);
+    const key = buildSearchDedupKey(item.albumTitle, item.artistName);
     const existing = best.get(key);
     if (!existing || priority[item.source] < priority[existing.source]) {
       best.set(key, item);

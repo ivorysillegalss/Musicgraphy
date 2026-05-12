@@ -427,6 +427,7 @@ export function SearchOverlay({
                                 <AlbumArtImage
                                   artist={album.artistName}
                                   album={album.albumTitle}
+                                  releaseId={album.id.startsWith("mb-") ? album.id.slice(3) : null}
                                   className="h-full w-full object-cover"
                                 />
                               </div>

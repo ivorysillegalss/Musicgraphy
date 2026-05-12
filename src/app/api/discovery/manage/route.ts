@@ -120,11 +120,11 @@ function parseCreatePayload(body: unknown) {
   const clusterCity = (geoGranularity === "city" ? normalizedCity : null)
     ?.toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/[^\p{L}\p{N}-]+/gu, "");
   const clusterRegion = (geoGranularity === "city" || geoGranularity === "region" ? normalizedRegionCode : null)
     ?.toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "") ?? "";
+    .replace(/[^\p{L}\p{N}-]+/gu, "") ?? "";
   const defaultCluster = clusterCity
     ? `${normalizedCountry.toLowerCase()}:${clusterRegion || "na"}:${clusterCity}`
     : clusterRegion
@@ -356,14 +356,14 @@ export async function PATCH(request: Request) {
         .trim()
         .toLowerCase()
         .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
+        .replace(/[^\p{L}\p{N}-]+/gu, "");
       const mergedRegionCode = String(
         sanitizeGeoLabel(String(hasRegionCodePatch ? (patch.region_code ?? "") : (current.region_code ?? ""))) ?? ""
       )
         .trim()
         .toLowerCase()
         .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
+        .replace(/[^\p{L}\p{N}-]+/gu, "");
 
       const computedCluster = mergedGeoGranularity === "city" && mergedCityName
         ? `${mergedCountryCode.toLowerCase()}:${mergedRegionCode || "na"}:${mergedCityName}`

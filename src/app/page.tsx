@@ -251,7 +251,7 @@ export default function Home() {
     }
   }, [configured, records]);
 
-  useEffect(() => {
+  async function refreshRecords() {
     if (!configured) {
       setRecords([]);
       return;
@@ -261,19 +261,21 @@ export default function Home() {
       return;
     }
 
-    void (async () => {
-      try {
-        const res = await fetch("/api/records", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        const data = await res.json();
-        if (data.records) {
-          setRecords(data.records);
-        }
-      } catch (error) {
-        console.error("Failed to fetch records", error);
+    try {
+      const res = await fetch("/api/records", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (Array.isArray(data.records)) {
+        setRecords(data.records);
       }
-    })();
+    } catch (error) {
+      console.error("Failed to fetch records", error);
+    }
+  }
+
+  useEffect(() => {
+    void refreshRecords();
   }, [configured, session]);
 
   async function signOut() {
@@ -477,8 +479,7 @@ export default function Home() {
             Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            albumTitle: album.albumTitle,
-            artistName: album.artistName,
+            recordId: existing.id,
           }),
         });
 
@@ -488,7 +489,7 @@ export default function Home() {
 
         setRecords((prev) =>
           prev.filter(
-            (r) => albumArtistKey(r.albumTitle, r.artistGeo.artistName) !== targetKey
+            (r) => r.id !== existing.id
           )
         );
 
@@ -814,6 +815,7 @@ export default function Home() {
         onClose={() => setIsNeteaseImportOpen(false)}
         sessionToken={session?.access_token}
         userId={session?.user.id}
+        onImported={refreshRecords}
       />
 
       <LibraryDrawer

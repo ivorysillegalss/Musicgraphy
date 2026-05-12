@@ -59,6 +59,7 @@ type MatchCandidate = {
   artistName: string;
   releaseDate: string | null;
   releaseYear: number | null;
+  source?: string;
 };
 
 type AlbumPreviewItem = {
@@ -132,22 +133,55 @@ async function buildPreviewItems(
   const newItems = baseItems.filter((item) => item.isNew);
   for (const item of newItems) {
     try {
-      const candidates = await searchReleasesByFields(
-        {
-          artist: item.artistName,
-          release: item.albumTitle,
-        },
-        5,
-        mbAuthToken
+      let candidates: MatchCandidate[] = [];
+
+      // 1. Try local cache / discovery_pool first
+      const localMatch = await dbGet<{ id: string; album_title: string; artist_name: string; release_year: number | null }>(
+        `select id, album_title, artist_name, release_year
+         from discovery_pool
+         where (lower(trim(artist_name)) = lower(trim(?)) or lower(coalesce(artist_search_name, '')) = lower(trim(?)))
+           and (lower(trim(album_title)) = lower(trim(?)) or lower(coalesce(album_search_title, '')) = lower(trim(?)))
+         limit 1`,
+        [item.artistName, item.artistName, item.albumTitle, item.albumTitle]
       );
 
-      item.mbCandidates = candidates.map((candidate) => ({
-        releaseId: candidate.id,
-        albumTitle: candidate.title,
-        artistName: candidate.artist?.name ?? item.artistName,
-        releaseDate: candidate.date,
-        releaseYear: candidate.year,
-      }));
+      if (localMatch) {
+        let releaseId = localMatch.id;
+        if (releaseId.startsWith("mb-")) {
+          releaseId = releaseId.slice(3);
+        }
+        candidates.push({
+          releaseId,
+          albumTitle: localMatch.album_title,
+          artistName: localMatch.artist_name,
+          releaseDate: localMatch.release_year ? `${localMatch.release_year}-01-01` : null,
+          releaseYear: localMatch.release_year,
+          source: 'local'
+        });
+      }
+
+      // 2. Fallback to MusicBrainz search if no local match
+      if (candidates.length === 0) {
+        const mbCandidates = await searchReleasesByFields(
+          {
+            artist: item.artistName,
+            release: item.albumTitle,
+          },
+          5,
+          mbAuthToken
+        );
+
+        candidates = mbCandidates.map((candidate) => ({
+          releaseId: candidate.id,
+          albumTitle: candidate.title,
+          artistName: candidate.artist?.name ?? item.artistName,
+          releaseDate: candidate.date,
+          releaseYear: candidate.year,
+          source: 'musicbrainz'
+        }));
+      }
+
+      item.mbCandidates = candidates;
       item.suggestedReleaseId = item.mbCandidates[0]?.releaseId ?? null;
       item.hasCandidate = item.mbCandidates.length > 0;
     } catch {

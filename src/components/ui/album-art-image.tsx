@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAlbumCoverUrl } from "@/lib/assets/covers";
 
 // ── Persistent store on window (survives HMR module re-evaluation) ──
@@ -59,8 +59,8 @@ type CoverLookupResponse = {
 
 // ── Cover fetcher with concurrency limiting ──
 
-async function fetchItunesCover(artist: string, albumName: string): Promise<string | null> {
-  const cacheKey = `${artist}:${albumName}`;
+async function fetchItunesCover(artist: string, albumName: string, releaseId?: string | null): Promise<string | null> {
+  const cacheKey = releaseId?.trim() ? `${artist}:${albumName}:${releaseId.trim()}` : `${artist}:${albumName}`;
   if (CACHE.has(cacheKey)) {
     const cached = CACHE.get(cacheKey)!;
     return cached === NO_COVER_SENTINEL ? null : cached;
@@ -74,6 +74,9 @@ async function fetchItunesCover(artist: string, albumName: string): Promise<stri
     try {
       try {
         const query = new URLSearchParams({ artist, album: albumName });
+        if (releaseId?.trim()) {
+          query.set("releaseId", releaseId.trim());
+        }
         const res = await fetch(`/api/itunes-proxy?${query.toString()}`);
         if (!res.ok) throw new Error("Album cover API error");
 
@@ -109,13 +112,14 @@ async function fetchItunesCover(artist: string, albumName: string): Promise<stri
 type AlbumArtImageProps = {
   artist: string;
   album: string;
+  releaseId?: string | null;
   className?: string;
   width?: string | number;
   height?: string | number;
 };
 
-export function AlbumArtImage({ artist, album, className, width, height }: AlbumArtImageProps) {
-  const cacheKey = `${artist}:${album}`;
+export function AlbumArtImage({ artist, album, releaseId, className, width, height }: AlbumArtImageProps) {
+  const cacheKey = releaseId?.trim() ? `${artist}:${album}:${releaseId.trim()}` : `${artist}:${album}`;
   const initialCached = CACHE.get(cacheKey);
   const [src, setSrc] = useState<string | null>(
     initialCached && initialCached !== NO_COVER_SENTINEL ? initialCached : null
@@ -124,6 +128,7 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   const fallbackUrl = getAlbumCoverUrl(artist, album, "medium");
 
@@ -158,7 +163,7 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
         setCandidateIndex(0);
       }
 
-      const url = await fetchItunesCover(artist, album);
+      const url = await fetchItunesCover(artist, album, releaseId);
       if (active) {
         if (url) {
           setSrc(url);
@@ -176,9 +181,17 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
     return () => {
       active = false;
     };
-  }, [artist, album, cacheKey]);
+  }, [artist, album, releaseId, cacheKey]);
 
   const finalSrc = !hasError && src ? src : fallbackUrl;
+
+  useEffect(() => {
+    setIsLoaded(false);
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setIsLoaded(true);
+    }
+  }, [finalSrc]);
 
   return (
     <div className={`relative overflow-hidden ${className || ''}`} style={{ width: width || '100%', height: height || '100%' }}>
@@ -192,6 +205,7 @@ export function AlbumArtImage({ artist, album, className, width, height }: Album
         />
       )}
       <img
+        ref={imageRef}
         key={`${artist}-${album}-${finalSrc}`}
         src={finalSrc}
         alt={`${album} by ${artist}`}

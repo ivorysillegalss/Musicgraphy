@@ -12,6 +12,7 @@ type NeteaseImportModalProps = {
   onClose: () => void;
   sessionToken?: string;
   userId?: string;
+  onImported?: () => void | Promise<void>;
 };
 
 type ImportSummary = {
@@ -52,6 +53,7 @@ export function NeteaseImportModal({
   onClose,
   sessionToken,
   userId,
+  onImported,
 }: NeteaseImportModalProps) {
   const { t } = useLanguage();
   const net = t.netease;
@@ -435,6 +437,8 @@ export function NeteaseImportModal({
       const s = data.summary;
       const msg = `${net.summaryFetched} ${s.fetched}, ${net.summaryImported} ${s.imported}, ${net.summarySkipped} ${s.skipped}, ${net.summaryFailed} ${s.failed}`;
       toast.success(msg, { id: loadId });
+
+      await onImported?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Import failed";
       setError(message);

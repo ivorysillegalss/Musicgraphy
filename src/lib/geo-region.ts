@@ -25,7 +25,7 @@ function normalizeLabel(value: string | null | undefined) {
     .trim()
     .toLowerCase()
     .replace(/\./g, "")
-    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/[^\p{L}\p{N}\s-]+/gu, " ")
     .replace(/\s+/g, " ");
 }
 

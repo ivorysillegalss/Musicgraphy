@@ -82,7 +82,7 @@ function normalizePart(value: string | null | undefined) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/[^\p{L}\p{N}-]+/gu, "");
 }
 
 function computeClusterKey(album: Pick<DiscoveryAlbum, "countryCode" | "countryName" | "cityName"> & {
