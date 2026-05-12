@@ -32,66 +32,70 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
     <AnimatePresence>
       {isOpen && (
         <motion.div
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           exit={{ opacity: 0 }}
-           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-           onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+          onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="w-full max-w-sm overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl"
+            initial={{ scale: 0.96, opacity: 0, y: 8 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.96, opacity: 0, y: 8 }}
+            transition={{ type: "spring", damping: 28, stiffness: 340 }}
+            className="w-full max-w-sm overflow-hidden rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl shadow-black/40"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
-              <h2 className="text-lg font-semibold text-white">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.04]">
+              <h2 className="text-base font-serif font-semibold text-[#ece8e1]">
                 {isLogin ? "Sign In" : "Create Account"}
               </h2>
-              <button onClick={onClose} className="text-zinc-400 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
+              <button
+                onClick={onClose}
+                className="p-1 rounded-md text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-400">Email Address</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-[#9a948c] tracking-wide">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                  <input 
-                    type="email" 
-                    required 
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#9a948c]" />
+                  <input
+                    type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg bg-black/40 border border-white/10 px-10 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-600"
+                    className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-9 py-2.5 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
                     placeholder="you@example.com"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-400">Password</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-[#9a948c] tracking-wide">Password</label>
                 <div className="relative">
-                   <Lock className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                   <input 
-                    type="password" 
-                    required 
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#9a948c]" />
+                  <input
+                    type="password"
+                    required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg bg-black/40 border border-white/10 px-10 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-600"
+                    className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-9 py-2.5 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
                     placeholder="••••••••"
                   />
                 </div>
               </div>
 
               {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                <div className="p-3 rounded-lg bg-[#8a4a5a]/10 border border-[#8a4a5a]/20 text-[11px] text-[#8a4a5a]/90">
                   {error}
                 </div>
               )}
-               {message && (
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+              {message && (
+                <div className="p-3 rounded-lg bg-[#4a8a6a]/10 border border-[#4a8a6a]/20 text-[11px] text-[#4a8a6a]/90">
                   {message}
                 </div>
               )}
@@ -99,22 +103,19 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2 shadow-lg shadow-indigo-500/20"
+                className="w-full h-10 rounded-lg bg-[#c9a04a] hover:bg-[#c9a04a]/90 text-[#0c0c0c] font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isLogin ? "Sign In" : "Sign Up")}
               </button>
             </form>
 
-            <div className="px-6 py-4 bg-zinc-950/50 text-center border-t border-white/5">
-              <p className="text-xs text-zinc-400">
+            <div className="px-6 py-4 bg-black/20 text-center border-t border-white/[0.04]">
+              <p className="text-[11px] text-[#9a948c]">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-                <button 
+                <button
                   type="button"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    // Clear errors when switching modes
-                  }}
-                  className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors ml-1"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="font-medium text-[#c9a04a]/80 hover:text-[#c9a04a] transition-colors"
                 >
                   {isLogin ? "Sign Up" : "Log In"}
                 </button>

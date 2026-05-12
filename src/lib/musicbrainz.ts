@@ -395,38 +395,27 @@ export async function resolveReleaseByArtistAndTitle(
   releaseTitle: string,
   authToken?: string | null
 ) {
-  const releaseQuery = encodeURIComponent(
-    `release:${releaseTitle} AND artist:${artistName}`
-  );
-
-  const releaseResponse = await fetchMusicBrainz<MusicBrainzReleaseResponse>(
-    `/release?query=${releaseQuery}&fmt=json&limit=1`,
+  const results = await searchReleasesByFields(
+    { artist: artistName, release: releaseTitle },
+    1,
     authToken
   );
 
-  const firstRelease = releaseResponse.releases?.[0];
-  if (!firstRelease) {
+  if (results.length === 0) {
     throw new Error("No matching release found in MusicBrainz.");
   }
 
-  const creditedArtist = firstRelease["artist-credit"]?.[0]?.artist;
-  if (!creditedArtist) {
+  const best = results[0];
+  if (!best.artist) {
     throw new Error("No artist information found for the matched release.");
   }
 
-  const releaseYear = firstRelease.date
-    ? Number.parseInt(firstRelease.date.slice(0, 4), 10)
-    : null;
-
   return {
-    id: firstRelease.id,
-    title: firstRelease.title,
-    date: firstRelease.date ?? null,
-    year: Number.isNaN(releaseYear) ? null : releaseYear,
-    artist: {
-      id: creditedArtist.id,
-      name: creditedArtist.name,
-    },
+    id: best.id,
+    title: best.title,
+    date: best.date,
+    year: best.year,
+    artist: best.artist,
   };
 }
 

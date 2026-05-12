@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { ApiHttpError, handleApiError } from "@/lib/api-error";
 import { getLocalAuthUser } from "@/lib/local-auth";
-import { dbAll } from "@/lib/local-db";
+import { dbAll, dbGet, dbRun } from "@/lib/local-db";
 import { mapRowToUserRecord, type UserRecordRow } from "@/lib/record-mapper";
 import type { UserRecord } from "@/lib/types";
 
@@ -64,6 +64,59 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({ records: filtered }, { status: 200 });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await getLocalAuthUser(request);
+    const body = await request.json();
+
+    const albumTitle: string | undefined = body?.albumTitle?.trim();
+    const artistName: string | undefined = body?.artistName?.trim();
+    const score: number | undefined = body?.score;
+
+    if (!albumTitle || !artistName) {
+      throw new ApiHttpError(400, "VALIDATION_ERROR", "albumTitle and artistName are required.");
+    }
+    if (typeof score !== "number" || score < 0 || score > 10 || !Number.isInteger(score)) {
+      throw new ApiHttpError(400, "VALIDATION_ERROR", "score must be an integer in [0, 10].");
+    }
+
+    const existing = await dbGet<UserRecordRow>(
+      `select id from user_records
+       where user_id = ?
+         and lower(trim(album_title)) = lower(trim(?))
+         and lower(trim(artist_name)) = lower(trim(?))
+       limit 1`,
+      [user.id, albumTitle, artistName]
+    );
+
+    if (!existing) {
+      return NextResponse.json({ error: "Record not found." }, { status: 404 });
+    }
+
+    await dbRun(
+      `update user_records set score = ? where id = ?`,
+      [score, existing.id]
+    );
+
+    const updated = await dbGet<UserRecordRow>(
+      `select
+        id, album_mbid, album_title, release_date, release_year,
+        listen_at, score, personal_tags, artist_id, artist_name,
+        country_code, country_name, city_name, lng, lat
+       from user_records
+       where id = ?`,
+      [existing.id]
+    );
+
+    return NextResponse.json(
+      updated ? mapRowToUserRecord(updated) : { success: true },
+      { status: 200 }
+    );
   } catch (error) {
     return handleApiError(error);
   }

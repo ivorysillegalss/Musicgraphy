@@ -18,10 +18,10 @@ export const MemoizedGeographies = memo(function MemoizedGeographies({
         <path
           key={index}
           d={pathBuilder(geo) ?? ""}
-          fill="#1e293b"
-          stroke="#334155"
+          fill="#16161a"
+          stroke="#1e1e24"
           strokeWidth={0.5}
-          className="transition-colors duration-500 hover:fill-slate-800 focus:outline-none"
+          className="transition-colors duration-500 hover:fill-[#1a1a20] focus:outline-none"
           style={{ outline: "none" }}
         />
       ))}

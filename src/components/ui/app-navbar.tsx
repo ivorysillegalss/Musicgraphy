@@ -1,14 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Key, Globe } from "lucide-react";
+import { Map, Disc, User, Globe } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type AppNavbarProps = {
   userEmail?: string;
   isLocalMode: boolean;
+  viewMode: "map" | "shelf";
+  onViewModeChange: (mode: "map" | "shelf") => void;
   onOpenGuide: () => void;
   onOpenMbTokens?: () => void;
+  onOpenNeteaseImport?: () => void;
   onOpenManage?: () => void;
   onSignOut: () => void;
   onAuthClick: () => void;
@@ -17,8 +20,11 @@ type AppNavbarProps = {
 export function AppNavbar({
   userEmail,
   isLocalMode,
+  viewMode,
+  onViewModeChange,
   onOpenGuide,
   onOpenMbTokens,
+  onOpenNeteaseImport,
   onOpenManage,
   onSignOut,
   onAuthClick,
@@ -29,83 +35,120 @@ export function AppNavbar({
     <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4"
+      transition={{ type: "spring", damping: 28, stiffness: 280 }}
+      className="fixed top-0 left-0 right-0 z-50 px-6"
     >
-      {/* Glass Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm pointer-events-none" />
-
-      {/* Logo & Title */}
-      <div className="relative z-10 flex items-center gap-4">
-        <div className="h-10 w-10 overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
-          <div className="flex h-full w-full items-center justify-center text-white font-bold text-lg">
-            M
+      <div className="py-4 flex items-center justify-between">
+        {/* Logo & Title */}
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-[#c9a04a]/10 border border-[#c9a04a]/20 flex items-center justify-center">
+            <span className="text-[13px] font-bold text-[#c9a04a] tracking-tight">M</span>
+          </div>
+          <div>
+            <h1 className="text-base font-serif font-bold text-[#ece8e1] tracking-tight leading-none">
+              {t.navbar.title}
+            </h1>
+            <p className="text-[10px] text-[#9a948c] font-medium tracking-[0.12em] uppercase mt-0.5">
+              {t.navbar.subtitle}
+            </p>
           </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">{t.navbar.title}</h1>
-          <p className="text-xs text-zinc-400 font-medium tracking-wide uppercase">
-            {t.navbar.subtitle}
-          </p>
+
+        {/* View Toggle */}
+        <div className="flex items-center gap-1 bg-[#141414]/60 border border-white/[0.06] rounded-lg p-0.5">
+          <button
+            onClick={() => onViewModeChange("map")}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all ${
+              viewMode === "map"
+                ? "bg-[#c9a04a]/10 text-[#c9a04a] border border-[#c9a04a]/15 shadow-sm"
+                : "text-[#5a5854] hover:text-[#8a8680] border border-transparent"
+            }`}
+          >
+            <Map size={12} />
+            <span>Map</span>
+          </button>
+          <button
+            onClick={() => onViewModeChange("shelf")}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all ${
+              viewMode === "shelf"
+                ? "bg-[#c9a04a]/10 text-[#c9a04a] border border-[#c9a04a]/15 shadow-sm"
+                : "text-[#5a5854] hover:text-[#8a8680] border border-transparent"
+            }`}
+          >
+            <Disc size={12} />
+            <span>Shelf</span>
+          </button>
         </div>
-      </div>
 
-      {/* Right Actions */}
-      <div className="relative z-10 flex items-center gap-3">
-        <button
-          onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
-          className="flex items-center justify-center p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors border border-white/10 text-zinc-300"
-          title={language === 'en' ? '切换到中文' : 'Switch to English'}
-        >
-          <Globe size={18} />
-          <span className="ml-1.5 text-xs font-semibold">{language === 'en' ? 'EN' : '中'}</span>
-        </button>
-
-        <button
-          onClick={onOpenGuide}
-          className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors backdrop-blur-md border border-white/5"
-        >
-          {t.navbar.guide}
-        </button>
-
-        {userEmail && onOpenMbTokens && (
+        {/* Right Actions */}
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={onOpenMbTokens}
-            className="flex items-center gap-2 rounded-full bg-amber-400/90 px-4 py-2 text-sm font-semibold text-black shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+            onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+            title={language === 'en' ? '切换到中文' : 'Switch to English'}
           >
-            <Key size={16} />
-            <span>MB Tokens</span>
+            <Globe size={13} />
+            <span>{language === 'en' ? 'EN' : '中'}</span>
           </button>
-        )}
 
-        {userEmail && onOpenManage && (
           <button
-            onClick={onOpenManage}
-            className="rounded-full bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-lg hover:bg-cyan-500/30 transition-colors border border-cyan-400/30"
+            onClick={onOpenGuide}
+            className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
           >
-            {t.navbar.manageGeo}
+            {t.navbar.guide}
           </button>
-        )}
 
-        {userEmail ? (
-          <div className="flex items-center gap-3 rounded-full bg-black/40 pl-4 pr-2 py-1.5 border border-white/10 backdrop-blur-md">
-            <span className="text-sm text-zinc-300 hidden md:block">{userEmail}</span>
+          {userEmail && onOpenMbTokens && (
             <button
-              onClick={onSignOut}
-              className="rounded-full bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+              onClick={onOpenMbTokens}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#c9a04a]/70 hover:text-[#c9a04a] hover:bg-[#c9a04a]/[0.06] transition-all"
             >
-              {t.navbar.signOut}
+              <span>MB</span>
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={onAuthClick}
-            className="group flex items-center gap-2 rounded-full bg-white text-black px-5 py-2.5 text-sm font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
-          >
-            <User size={16} />
-            <span>{isLocalMode ? t.navbar.localMode : t.navbar.signIn}</span>
-          </button>
-        )}
+          )}
+
+          {userEmail && onOpenNeteaseImport && (
+            <button
+              onClick={onOpenNeteaseImport}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#c9a04a]/70 hover:text-[#c9a04a] hover:bg-[#c9a04a]/[0.06] transition-all"
+            >
+              NetEase
+            </button>
+          )}
+
+          {userEmail && onOpenManage && (
+            <button
+              onClick={onOpenManage}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+            >
+              {t.navbar.manageGeo}
+            </button>
+          )}
+
+          {userEmail ? (
+            <div className="flex items-center gap-2 pl-3 border-l border-white/[0.06]">
+              <span className="text-[11px] text-[#9a948c] hidden md:block max-w-[120px] truncate">
+                {userEmail}
+              </span>
+              <button
+                onClick={onSignOut}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#8a4a5a] hover:bg-[#8a4a5a]/[0.06] transition-all"
+              >
+                {t.navbar.signOut}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onAuthClick}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg border border-white/[0.08] text-[11px] font-medium text-[#ece8e1] hover:bg-white/[0.04] hover:border-white/[0.12] transition-all"
+            >
+              <User size={13} />
+              <span>{isLocalMode ? t.navbar.localMode : t.navbar.signIn}</span>
+            </button>
+          )}
+        </div>
       </div>
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
     </motion.header>
   );
 }

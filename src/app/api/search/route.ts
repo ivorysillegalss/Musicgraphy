@@ -626,6 +626,7 @@ export async function GET(request: Request) {
             );
             if (!exists) {
               results.push(item);
+              externalError = undefined; // at least one result succeeded — clear partial-failure errors
             }
           }
         }
