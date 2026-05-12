@@ -419,6 +419,36 @@ export async function resolveReleaseByArtistAndTitle(
   };
 }
 
+export async function resolveReleaseById(releaseId: string, authToken?: string | null) {
+  const normalizedId = releaseId.trim();
+  if (!normalizedId) {
+    throw new Error("Release ID is required.");
+  }
+
+  const release = await fetchMusicBrainz<MusicBrainzRelease>(
+    `/release/${encodeURIComponent(normalizedId)}?fmt=json&inc=artist-credits+tags+genres`,
+    authToken
+  );
+
+  const artist = release["artist-credit"]?.[0]?.artist;
+  if (!artist) {
+    throw new Error("No artist information found for the selected MusicBrainz release.");
+  }
+
+  const releaseYear = release.date ? Number.parseInt(release.date.slice(0, 4), 10) : null;
+
+  return {
+    id: release.id,
+    title: release.title,
+    date: release.date ?? null,
+    year: Number.isNaN(releaseYear) ? null : releaseYear,
+    artist: {
+      id: artist.id,
+      name: artist.name,
+    },
+  };
+}
+
 export async function resolveArtistGeoById(artistId: string, authToken?: string | null) {
   const artistResponse = await fetchMusicBrainz<MusicBrainzArtistResponse>(
     `/artist/${artistId}?fmt=json`,

@@ -3,8 +3,12 @@ import { NextResponse } from "next/server";
 import { ApiHttpError, handleApiError } from "@/lib/api-error";
 import { getLocalAuthUser } from "@/lib/local-auth";
 import { dbAll, dbGet } from "@/lib/local-db";
-import { resolveReleaseByArtistAndTitle } from "@/lib/musicbrainz";
-import { cacheNotFound, cacheRelease, getCachedRelease } from "@/lib/release-cache";
+import {
+  resolveReleaseByArtistAndTitle,
+  resolveReleaseById,
+  searchReleasesByFields,
+} from "@/lib/musicbrainz";
+import { cacheRelease, getCachedRelease } from "@/lib/release-cache";
 import {
   createUserRecord,
   resolveArtistGeoWithCache,
@@ -39,8 +43,22 @@ type NeteaseImportRequest = {
   // Preview mode: return album list without importing
   preview?: boolean;
 
-  // Selected albums to import (dedup keys), empty = all new
-  selected?: string[];
+  // Selected albums to import.
+  // Backward-compatible with old string[] payload.
+  selected?: Array<string | { dedupKey: string; releaseId?: string | null }>;
+};
+
+type SelectedItem = {
+  dedupKey: string;
+  releaseId: string | null;
+};
+
+type MatchCandidate = {
+  releaseId: string;
+  albumTitle: string;
+  artistName: string;
+  releaseDate: string | null;
+  releaseYear: number | null;
 };
 
 type AlbumPreviewItem = {
@@ -49,6 +67,9 @@ type AlbumPreviewItem = {
   albumTitle: string;
   savedAt: string;
   isNew: boolean;
+  mbCandidates: MatchCandidate[];
+  suggestedReleaseId: string | null;
+  hasCandidate: boolean;
 };
 
 type ExistingRow = {
@@ -58,6 +79,85 @@ type ExistingRow = {
 
 function buildDedupeKey(artistName: string, albumTitle: string) {
   return `${artistName.trim().toLowerCase()}||${albumTitle.trim().toLowerCase()}`;
+}
+
+function parseSelectedItems(payload: NeteaseImportRequest["selected"]): SelectedItem[] {
+  if (!Array.isArray(payload)) return [];
+
+  const parsed: SelectedItem[] = [];
+  for (const item of payload) {
+    if (typeof item === "string") {
+      const dedupKey = item.trim().toLowerCase();
+      if (dedupKey) {
+        parsed.push({ dedupKey, releaseId: null });
+      }
+      continue;
+    }
+
+    if (!item || typeof item !== "object") continue;
+    const dedupKey = String(item.dedupKey ?? "").trim().toLowerCase();
+    if (!dedupKey) continue;
+
+    const releaseIdRaw = item.releaseId;
+    const releaseId =
+      typeof releaseIdRaw === "string" && releaseIdRaw.trim().length > 0
+        ? releaseIdRaw.trim()
+        : null;
+
+    parsed.push({ dedupKey, releaseId });
+  }
+
+  return parsed;
+}
+
+async function buildPreviewItems(
+  albums: NeteaseSavedAlbum[],
+  existingKeySet: Set<string>,
+  mbAuthToken: string | null
+): Promise<AlbumPreviewItem[]> {
+  const baseItems: AlbumPreviewItem[] = albums.map((a) => {
+    const dedupKey = buildDedupeKey(a.artistName, a.title);
+    return {
+      dedupKey,
+      artistName: a.artistName,
+      albumTitle: a.title,
+      savedAt: a.savedAt,
+      isNew: !existingKeySet.has(dedupKey),
+      mbCandidates: [],
+      suggestedReleaseId: null,
+      hasCandidate: false,
+    };
+  });
+
+  const newItems = baseItems.filter((item) => item.isNew);
+  for (const item of newItems) {
+    try {
+      const candidates = await searchReleasesByFields(
+        {
+          artist: item.artistName,
+          release: item.albumTitle,
+        },
+        5,
+        mbAuthToken
+      );
+
+      item.mbCandidates = candidates.map((candidate) => ({
+        releaseId: candidate.id,
+        albumTitle: candidate.title,
+        artistName: candidate.artist?.name ?? item.artistName,
+        releaseDate: candidate.date,
+        releaseYear: candidate.year,
+      }));
+      item.suggestedReleaseId = item.mbCandidates[0]?.releaseId ?? null;
+      item.hasCandidate = item.mbCandidates.length > 0;
+    } catch {
+      item.mbCandidates = [];
+      item.suggestedReleaseId = null;
+      item.hasCandidate = false;
+    }
+  }
+
+  return baseItems;
 }
 
 function parseBody(body: unknown): NeteaseImportRequest {
@@ -158,7 +258,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 3: Dedup against existing records
+    // Step 3: Fetch user's MB token for authenticated MusicBrainz access
+    const userRow = await dbGet<{ mb_token: string | null }>(
+      `select mb_token from users where id = ? limit 1`,
+      [user.id]
+    );
+    const mbAuthToken = userRow?.mb_token ?? null;
+
+    // Step 4: Dedup against existing records
     const existing = await dbAll<ExistingRow>(
       `select distinct album_title, artist_name
        from user_records
@@ -170,16 +277,10 @@ export async function POST(request: Request) {
       (existing ?? []).map((row) => buildDedupeKey(row.artist_name, row.album_title))
     );
 
-    // Build preview items
-    const allItems: AlbumPreviewItem[] = albums.map((a) => ({
-      dedupKey: buildDedupeKey(a.artistName, a.title),
-      artistName: a.artistName,
-      albumTitle: a.title,
-      savedAt: a.savedAt,
-      isNew: !existingKeySet.has(buildDedupeKey(a.artistName, a.title)),
-    }));
+    // Build preview items with candidate MB matches for manual confirmation.
+    const allItems = await buildPreviewItems(albums, existingKeySet, mbAuthToken);
 
-    // Step 4: Preview mode — return list without importing
+    // Step 5: Preview mode — return list without importing
     if (body.preview) {
       return NextResponse.json(
         {
@@ -194,10 +295,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 5: Import mode — filter by selected keys, then process
-    const selectedSet = body.selected?.length
-      ? new Set(body.selected.map((k) => k.trim().toLowerCase()))
+    // Step 6: Import mode — filter by selected keys, then process
+    const selectedItems = parseSelectedItems(body.selected);
+    const selectedSet = selectedItems.length
+      ? new Set(selectedItems.map((item) => item.dedupKey))
       : null;
+    const selectedReleaseMap = new Map(selectedItems.map((item) => [item.dedupKey, item.releaseId]));
 
     const toImport = allItems.filter((item) => {
       if (!item.isNew) return false;
@@ -215,14 +318,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch user's MB token for authenticated MusicBrainz access
-    const userRow = await dbGet<{ mb_token: string | null }>(
-      `select mb_token from users where id = ? limit 1`,
-      [user.id]
-    );
-    const mbAuthToken = userRow?.mb_token ?? null;
-
-    // Step 6: Process each album through MusicBrainz
+    // Step 7: Process each album through MusicBrainz
     let imported = 0;
     let skipped = 0;
     let failed = 0;
@@ -230,16 +326,22 @@ export async function POST(request: Request) {
 
     for (const item of toImport) {
       try {
-        const cached = await getCachedRelease(item.artistName, item.albumTitle);
-
         let release: ReleaseResolution;
-        if (cached === null) {
-          release = await resolveReleaseByArtistAndTitle(item.artistName, item.albumTitle, mbAuthToken);
+        const selectedReleaseId = selectedReleaseMap.get(item.dedupKey) ?? null;
+
+        if (selectedReleaseId) {
+          release = await resolveReleaseById(selectedReleaseId, mbAuthToken);
           await cacheRelease(item.artistName, item.albumTitle, release);
-        } else if ("notFound" in cached) {
-          throw new Error("No matching release found in MusicBrainz (cached).");
         } else {
-          release = cached;
+          const cached = await getCachedRelease(item.artistName, item.albumTitle);
+          if (cached === null) {
+            release = await resolveReleaseByArtistAndTitle(item.artistName, item.albumTitle, mbAuthToken);
+            await cacheRelease(item.artistName, item.albumTitle, release);
+          } else if ("notFound" in cached) {
+            throw new Error("No matching release found in MusicBrainz (cached). Please select a candidate manually.");
+          } else {
+            release = cached;
+          }
         }
 
         const artistGeo = await resolveArtistGeoWithCache(release.artist.id, mbAuthToken);

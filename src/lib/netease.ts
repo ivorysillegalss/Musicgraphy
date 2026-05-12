@@ -45,6 +45,41 @@ function sanitizeCookie(raw: string): string {
   return [...seen.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
+function extractArtistName(item: Record<string, unknown>, album?: Record<string, unknown>): string {
+  const tryRead = (value: unknown): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
+  const directAlbumArtist = tryRead((album?.artist as Record<string, unknown> | undefined)?.name);
+  if (directAlbumArtist) return directAlbumArtist;
+
+  const albumArtists = album?.artists;
+  if (Array.isArray(albumArtists)) {
+    const names = albumArtists
+      .map((a) => tryRead((a as Record<string, unknown>)?.name))
+      .filter((v): v is string => Boolean(v));
+    if (names.length > 0) return names.join(", ");
+  }
+
+  const directItemArtist = tryRead((item.artist as Record<string, unknown> | undefined)?.name);
+  if (directItemArtist) return directItemArtist;
+
+  const itemArtists = item.artists;
+  if (Array.isArray(itemArtists)) {
+    const names = itemArtists
+      .map((a) => tryRead((a as Record<string, unknown>)?.name))
+      .filter((v): v is string => Boolean(v));
+    if (names.length > 0) return names.join(", ");
+  }
+
+  const translatedName = tryRead(album?.transNames);
+  if (translatedName) return translatedName;
+
+  return "Unknown";
+}
+
 /**
  * Low-level call to the api-enhanced server.
  * Returns the full JSON body without code validation.
@@ -209,7 +244,11 @@ export type QRCheckResult =
  * Response on 803: { code: 803, cookie: "MUSIC_U=...; __csrf=..." }
  */
 export async function checkQRStatus(key: string): Promise<QRCheckResult> {
-  const body = await neteaseFetch<{ cookie?: string }>("/login/qr/check", { key });
+  const body = await neteaseFetch<{ cookie?: string }>("/login/qr/check", {
+    key,
+    timestamp: Date.now(),
+    noCookie: 1,
+  });
 
   if (body.code === 803 && body.cookie) {
     return { status: QR_STATUS.AUTHORIZED, cookie: body.cookie };
@@ -279,8 +318,7 @@ export async function fetchSavedAlbums(params: {
       items.push({
         albumId: Number(album.id),
         title: String(album.name),
-        artistName:
-          (album.artist as Record<string, unknown> | undefined)?.name as string ?? "Unknown",
+        artistName: extractArtistName(item, album),
         coverUrl: (album.picUrl as string) ?? null,
         savedAt: new Date(Number(item.time) || Date.now()).toISOString(),
         publishTime: album.publishTime
@@ -295,8 +333,7 @@ export async function fetchSavedAlbums(params: {
       items.push({
         albumId: Number(item.id),
         title: String(item.name),
-        artistName:
-          ((item.artist as Record<string, unknown> | undefined)?.name as string) ?? "Unknown",
+        artistName: extractArtistName(item),
         coverUrl: (item.picUrl as string) ?? null,
         savedAt: new Date(Number(item.time) || Number(item.subTime) || Date.now()).toISOString(),
         publishTime: item.publishTime

@@ -33,9 +33,19 @@ type AlbumPreviewItem = {
   albumTitle: string;
   savedAt: string;
   isNew: boolean;
+  mbCandidates: Array<{
+    releaseId: string;
+    albumTitle: string;
+    artistName: string;
+    releaseDate: string | null;
+    releaseYear: number | null;
+  }>;
+  suggestedReleaseId: string | null;
+  hasCandidate: boolean;
 };
 
 type Step = "auth" | "preview" | "importing" | "done";
+type PreviewFilterMode = "all" | "no-candidate" | "candidate-conflict";
 
 export function NeteaseImportModal({
   isOpen,
@@ -61,11 +71,14 @@ export function NeteaseImportModal({
   const [csrf, setCsrf] = useState("");
 
   // QR login
-  const [qrKey, setQrKey] = useState<string | null>(null);
+  const [, setQrKey] = useState<string | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [qrStatus, setQrStatus] = useState<string>("");
   const [isQrPolling, setIsQrPolling] = useState(false);
+  const qrPollingStateRef = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrAutoRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const qrScannedToastShownRef = useRef(false);
 
   // Import source
   const [importType, setImportType] = useState<"saved" | "playlist">("saved");
@@ -89,8 +102,9 @@ export function NeteaseImportModal({
 
   // Step tracking
   const [step, setStep] = useState<Step>("auth");
+  const [previewFilterMode, setPreviewFilterMode] = useState<PreviewFilterMode>("all");
   const [albumPreview, setAlbumPreview] = useState<AlbumPreviewItem[]>([]);
-  const [selectedAlbumKeys, setSelectedAlbumKeys] = useState<string[]>([]);
+  const [selectedAlbumMap, setSelectedAlbumMap] = useState<Record<string, string | null>>({});
   const [authRequestBody, setAuthRequestBody] = useState<Record<string, unknown> | null>(null);
 
   // QR auto-retry
@@ -112,8 +126,9 @@ export function NeteaseImportModal({
     setQrStatus("");
     setIsQrPolling(false);
     setStep("auth");
+    setPreviewFilterMode("all");
     setAlbumPreview([]);
-    setSelectedAlbumKeys([]);
+    setSelectedAlbumMap({});
     setAuthRequestBody(null);
     setSummary(null);
     setFailures([]);
@@ -121,6 +136,11 @@ export function NeteaseImportModal({
     setError(null);
     setNeedCaptcha(false);
     qrRetryCountRef.current = 0;
+    qrScannedToastShownRef.current = false;
+    if (qrAutoRefreshRef.current) {
+      clearTimeout(qrAutoRefreshRef.current);
+      qrAutoRefreshRef.current = null;
+    }
   }
 
   function resetAuthOnly() {
@@ -138,6 +158,11 @@ export function NeteaseImportModal({
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
+    if (qrAutoRefreshRef.current) {
+      clearTimeout(qrAutoRefreshRef.current);
+      qrAutoRefreshRef.current = null;
+    }
+    qrPollingStateRef.current = false;
     setIsQrPolling(false);
   }
 
@@ -174,11 +199,12 @@ export function NeteaseImportModal({
       if (!res.ok) throw new Error(data?.error?.message || data?.message || "Preview failed");
 
       setAlbumPreview(data.albums ?? []);
-      setSelectedAlbumKeys(
-        (data.albums ?? [])
-          .filter((a: AlbumPreviewItem) => a.isNew)
-          .map((a: AlbumPreviewItem) => a.dedupKey)
-      );
+      const selectedMap: Record<string, string | null> = {};
+      for (const album of (data.albums ?? []) as AlbumPreviewItem[]) {
+        if (!album.isNew || !album.suggestedReleaseId) continue;
+        selectedMap[album.dedupKey] = album.suggestedReleaseId ?? null;
+      }
+      setSelectedAlbumMap(selectedMap);
       setAuthRequestBody(body);
       setQrStatus(net.qrAuthorized);
       setStep("preview");
@@ -195,8 +221,15 @@ export function NeteaseImportModal({
   function startQrPolling(key: string) {
     stopQrPolling();
     setIsQrPolling(true);
+    qrPollingStateRef.current = true;
 
-    pollingRef.current = setInterval(async () => {
+    qrAutoRefreshRef.current = setTimeout(() => {
+      if (!qrPollingStateRef.current) return;
+      setQrStatus(net.qrRefreshing);
+      void generateQRRef.current();
+    }, 55_000);
+
+    const runCheck = async () => {
       try {
         const res = await fetch("/api/netease/qr", {
           method: "POST",
@@ -204,6 +237,10 @@ export function NeteaseImportModal({
           body: JSON.stringify({ action: "check", key }),
         });
         const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error?.message || "QR polling failed");
+        }
 
         if (data.status === QR_STATUS.AUTHORIZED) {
           await handleQrPreview(data.cookie);
@@ -215,27 +252,37 @@ export function NeteaseImportModal({
           stopQrPolling();
           qrRetryCountRef.current += 1;
           if (qrRetryCountRef.current < 3) {
-            setTimeout(() => generateQRRef.current(), 3000);
+            setTimeout(() => generateQRRef.current(), 1500);
           }
           return;
         }
 
         if (data.status === QR_STATUS.SCANNED) {
           setQrStatus(net.qrScanned);
+          if (!qrScannedToastShownRef.current) {
+            toast.success(net.qrScanned);
+            qrScannedToastShownRef.current = true;
+          }
           return;
         }
 
         setQrStatus(net.qrWaiting);
       } catch {
         setQrStatus(net.qrError);
-        stopQrPolling();
       }
-    }, 2000);
+    };
+
+    void runCheck();
+
+    pollingRef.current = setInterval(async () => {
+      await runCheck();
+    }, 1200);
   }
 
   async function generateQRCode() {
     qrRetryCountRef.current = 0;
     resetAuthOnly();
+    qrScannedToastShownRef.current = false;
     setQrKey(null);
     setQrImage(null);
     setQrStatus(net.qrGenerating);
@@ -324,11 +371,12 @@ export function NeteaseImportModal({
       if (!res.ok) throw new Error(data?.error?.message || data?.message || "Preview failed");
 
       setAlbumPreview(data.albums ?? []);
-      setSelectedAlbumKeys(
-        (data.albums ?? [])
-          .filter((a: AlbumPreviewItem) => a.isNew)
-          .map((a: AlbumPreviewItem) => a.dedupKey)
-      );
+      const selectedMap: Record<string, string | null> = {};
+      for (const album of (data.albums ?? []) as AlbumPreviewItem[]) {
+        if (!album.isNew || !album.suggestedReleaseId) continue;
+        selectedMap[album.dedupKey] = album.suggestedReleaseId ?? null;
+      }
+      setSelectedAlbumMap(selectedMap);
       setAuthRequestBody(body);
       setStep("preview");
     } catch (err) {
@@ -343,7 +391,8 @@ export function NeteaseImportModal({
   // ── Import (from preview step) ─────────────────────────────────────
 
   async function handleImport() {
-    if (selectedAlbumKeys.length === 0) {
+    const selectedEntries = Object.entries(selectedAlbumMap);
+    if (selectedEntries.length === 0) {
       toast.error("No albums selected");
       return;
     }
@@ -363,7 +412,7 @@ export function NeteaseImportModal({
         },
         body: JSON.stringify({
           ...authRequestBody,
-          selected: selectedAlbumKeys,
+          selected: selectedEntries.map(([dedupKey, releaseId]) => ({ dedupKey, releaseId })),
         }),
       });
 
@@ -397,17 +446,46 @@ export function NeteaseImportModal({
   // ── Helpers ────────────────────────────────────────────────────────
 
   function toggleAlbum(key: string) {
-    setSelectedAlbumKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
+    setSelectedAlbumMap((prev) => {
+      if (Object.prototype.hasOwnProperty.call(prev, key)) {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+
+      const album = albumPreview.find((item) => item.dedupKey === key);
+      if (!album?.hasCandidate) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [key]: album?.suggestedReleaseId ?? null,
+      };
+    });
+  }
+
+  function updateSelectedRelease(key: string, releaseId: string | null) {
+    setSelectedAlbumMap((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, key)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [key]: releaseId,
+      };
+    });
   }
 
   function selectAll() {
-    setSelectedAlbumKeys(albumPreview.map((a) => a.dedupKey));
+    const next: Record<string, string | null> = {};
+    for (const album of albumPreview.filter((a) => a.isNew && a.hasCandidate)) {
+      next[album.dedupKey] = album.suggestedReleaseId ?? null;
+    }
+    setSelectedAlbumMap(next);
   }
 
   function deselectAll() {
-    setSelectedAlbumKeys([]);
+    setSelectedAlbumMap({});
   }
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -669,12 +747,27 @@ export function NeteaseImportModal({
 
   function renderPreview() {
     const newCount = albumPreview.filter((a) => a.isNew).length;
+    const selectedCount = Object.keys(selectedAlbumMap).length;
+    const noCandidateCount = albumPreview.filter((a) => a.isNew && !a.hasCandidate).length;
+    const candidateConflictCount = albumPreview.filter(
+      (a) => a.isNew && a.mbCandidates.length > 1
+    ).length;
+
+    const filteredAlbums = albumPreview.filter((item) => {
+      if (previewFilterMode === "no-candidate") {
+        return item.isNew && !item.hasCandidate;
+      }
+      if (previewFilterMode === "candidate-conflict") {
+        return item.isNew && item.mbCandidates.length > 1;
+      }
+      return true;
+    });
 
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-xs text-[#9a948c]">
-            {albumPreview.length} albums &middot; {newCount} new
+            {albumPreview.length} albums &middot; {newCount} new &middot; {selectedCount} selected
           </p>
           <div className="flex gap-2">
             <button
@@ -692,10 +785,44 @@ export function NeteaseImportModal({
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setPreviewFilterMode("all")}
+            className={`rounded px-2.5 py-1 text-[11px] transition-all ${
+              previewFilterMode === "all"
+                ? "bg-[#c9a04a]/20 border border-[#c9a04a]/35 text-[#c9a04a]"
+                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1]"
+            }`}
+          >
+            {net.previewFilterAll}
+          </button>
+          <button
+            onClick={() => setPreviewFilterMode("no-candidate")}
+            className={`rounded px-2.5 py-1 text-[11px] transition-all ${
+              previewFilterMode === "no-candidate"
+                ? "bg-[#8a4a5a]/20 border border-[#8a4a5a]/35 text-[#8a4a5a]"
+                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1]"
+            }`}
+          >
+            {net.previewFilterNoCandidate.replace("{count}", String(noCandidateCount))}
+          </button>
+          <button
+            onClick={() => setPreviewFilterMode("candidate-conflict")}
+            className={`rounded px-2.5 py-1 text-[11px] transition-all ${
+              previewFilterMode === "candidate-conflict"
+                ? "bg-[#4a7e8a]/20 border border-[#4a7e8a]/35 text-[#74becf]"
+                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1]"
+            }`}
+          >
+            {net.previewFilterConflict.replace("{count}", String(candidateConflictCount))}
+          </button>
+        </div>
+
         {/* Album list */}
         <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
-          {albumPreview.map((item) => {
-            const checked = selectedAlbumKeys.includes(item.dedupKey);
+          {filteredAlbums.map((item) => {
+            const checked = Object.prototype.hasOwnProperty.call(selectedAlbumMap, item.dedupKey);
+            const selectedReleaseId = checked ? selectedAlbumMap[item.dedupKey] ?? "" : "";
             return (
               <label
                 key={item.dedupKey}
@@ -708,6 +835,7 @@ export function NeteaseImportModal({
                 <input
                   type="checkbox"
                   checked={checked}
+                  disabled={!item.isNew || !item.hasCandidate}
                   onChange={() => toggleAlbum(item.dedupKey)}
                   className="accent-[#c9a04a] h-3.5 w-3.5 rounded"
                 />
@@ -715,19 +843,49 @@ export function NeteaseImportModal({
                   <p className="text-xs text-[#ece8e1] truncate">
                     {item.artistName} — {item.albumTitle}
                   </p>
+                  {item.isNew && (
+                    <div className="mt-1">
+                      {item.mbCandidates.length > 0 ? (
+                        <select
+                          value={selectedReleaseId}
+                          onChange={(e) => updateSelectedRelease(item.dedupKey, e.target.value || null)}
+                          disabled={!checked}
+                          className="w-full rounded bg-black/40 border border-white/[0.08] px-2 py-1 text-[11px] text-[#ece8e1] disabled:opacity-50"
+                        >
+                          {item.mbCandidates.map((candidate) => (
+                            <option key={candidate.releaseId} value={candidate.releaseId}>
+                              {candidate.artistName} - {candidate.albumTitle}
+                              {candidate.releaseYear ? ` (${candidate.releaseYear})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-[10px] text-[#8a4a5a]/80">
+                          {net.noMbCandidate}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <span
                   className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
                     item.isNew
-                      ? "bg-[#4a8a6a]/15 text-[#4a8a6a]"
+                      ? item.hasCandidate
+                        ? "bg-[#4a8a6a]/15 text-[#4a8a6a]"
+                        : "bg-[#8a4a5a]/15 text-[#8a4a5a]"
                       : "bg-[#9a948c]/10 text-[#9a948c]"
                   }`}
                 >
-                  {item.isNew ? "NEW" : "EXISTS"}
+                  {item.isNew ? (item.hasCandidate ? "MATCHED" : "NO MATCH") : "EXISTS"}
                 </span>
               </label>
             );
           })}
+          {filteredAlbums.length === 0 && (
+            <div className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-4 text-center text-xs text-[#9a948c]">
+              {net.previewFilterEmpty}
+            </div>
+          )}
         </div>
 
         {/* Error */}
@@ -874,11 +1032,11 @@ export function NeteaseImportModal({
                   </button>
                   <button
                     onClick={() => void handleImport()}
-                    disabled={selectedAlbumKeys.length === 0 || isProcessing}
+                    disabled={Object.keys(selectedAlbumMap).length === 0 || isProcessing}
                     className="flex items-center gap-2 rounded-lg bg-[#c9a04a] px-4 py-1.5 text-[11px] font-medium text-[#0c0c0c] hover:bg-[#c9a04a]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                   >
                     {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    {net.importSelected.replace("{count}", String(selectedAlbumKeys.length))}
+                    {net.importSelected.replace("{count}", String(Object.keys(selectedAlbumMap).length))}
                   </button>
                 </>
               )}
