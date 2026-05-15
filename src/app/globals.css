@@ -1,32 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #0c0c0c;
-  --bg-secondary: #141414;
-  --bg-tertiary: #1c1c1c;
-  --bg-elevated: #242424;
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-accent: rgba(255, 255, 255, 0.12);
-  --text-primary: #ece8e1;
-  --text-secondary: #8a8680;
-  --text-tertiary: #5a5854;
-  --accent-gold: #c9a04a;
-  --accent-green: #4a8a6a;
-  --accent-rose: #8a4a5a;
-  --accent-blue: #5a7a8a;
-  --accent-plum: #6a4a6a;
-  --glow-gold: rgba(201, 160, 74, 0.15);
-  --glow-green: rgba(74, 138, 106, 0.15);
-  --glow-rose: rgba(138, 74, 90, 0.15);
-  --glow-blue: rgba(90, 122, 138, 0.15);
+  /* Espresso Amber Palette */
+  --bg-ink: #120f0c;
+  --bg-espresso: #1b1511;
+  --bg-roast: #241b15;
+  --bg-elevated: #2b2018;
+
+  --edge-soft: rgba(246, 229, 207, 0.08);
+  --edge-bronze: rgba(194, 150, 97, 0.25);
+
+  --text-cream: #f3e8d9;
+  --text-muted: #c4b39a;
+  --text-dim: #8d7c66;
+
+  --accent-amber: #d39b5f;
+  --accent-brass: #b77b3f;
+  --accent-ember: #cc6b4a;
+
+  --glow-amber: rgba(211, 155, 95, 0.18);
+  --glow-ember: rgba(204, 107, 74, 0.18);
+
+  /* Back-compat for existing tokens */
+  --color-primary: #b77b3f;
+  --color-secondary: #d39b5f;
+  --color-cta: #d39b5f;
+  --color-background: var(--bg-ink);
+  --color-text: var(--text-cream);
+
+  --bg-primary: var(--bg-ink);
+  --bg-secondary: var(--bg-espresso);
+  --bg-tertiary: var(--bg-roast);
+  --bg-elevated: var(--bg-elevated);
+
+  --border-subtle: var(--edge-soft);
+  --border-default: var(--edge-soft);
+  --border-accent: var(--edge-bronze);
+
+  --text-primary: var(--text-cream);
+  --text-secondary: var(--text-muted);
+  --text-tertiary: var(--text-dim);
 }
 
 @theme inline {
   --color-background: var(--bg-primary);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-outfit), "Segoe UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  --font-serif: var(--font-playfair), "Georgia", "Noto Serif CJK SC", serif;
+  --font-sans: var(--font-poppins), "Segoe UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --font-serif: var(--font-righteous), "Georgia", "Noto Serif CJK SC", serif;
   --font-mono: var(--font-jb-mono), "SFMono-Regular", "Consolas", monospace;
 }
 
@@ -58,14 +78,14 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(201, 160, 74, 0.2);
-  color: #ece8e1;
+  background: rgba(211, 155, 95, 0.24);
+  color: #f3e8d9;
 }
 
 /* Focus ring */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(201, 160, 74, 0.3);
+  box-shadow: 0 0 0 2px rgba(211, 155, 95, 0.4);
   border-radius: 2px;
 }
 
@@ -95,21 +115,21 @@ input[type="range"]::-webkit-slider-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #c9a04a;
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: var(--color-cta);
+  border: 2px solid rgba(248, 250, 252, 0.15);
   margin-top: -5px;
-  box-shadow: 0 0 12px rgba(201, 160, 74, 0.2);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
   transition: all 0.15s ease;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 0 20px rgba(201, 160, 74, 0.3);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
 }
 
 input[type="range"]::-moz-range-track {
   height: 3px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(248, 250, 252, 0.06);
   border-radius: 999px;
   border: none;
 }
@@ -118,9 +138,9 @@ input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #c9a04a;
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 12px rgba(201, 160, 74, 0.2);
+  background: var(--color-cta);
+  border: 2px solid rgba(248, 250, 252, 0.15);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
   cursor: pointer;
 }
 
@@ -136,8 +156,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(201, 160, 74, 0.08); }
-  50% { box-shadow: 0 0 18px rgba(201, 160, 74, 0.2); }
+  0%, 100% { box-shadow: 0 0 6px rgba(34, 197, 94, 0.1); }
+  50% { box-shadow: 0 0 18px rgba(34, 197, 94, 0.3); }
 }
 
 @keyframes shimmer {
