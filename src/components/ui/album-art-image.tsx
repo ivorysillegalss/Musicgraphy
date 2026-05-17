@@ -219,9 +219,12 @@ export function AlbumArtImage({ artist, album, releaseId, className, width, heig
           if (nextIndex < candidateUrls.length) {
             setCandidateIndex(nextIndex);
             setSrc(candidateUrls[nextIndex]);
+            // Update cache to point to the new working candidate URL so remounts use it
+            CACHE.set(cacheKey, candidateUrls[nextIndex]);
             setHasError(false);
             return;
           }
+          CACHE.set(cacheKey, NO_COVER_SENTINEL);
           setHasError(true);
         }}
       />

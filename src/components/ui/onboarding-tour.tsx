@@ -15,9 +15,9 @@ const TOUR_STEPS = [
     title: "漫游乐图",
     description: "拖拽和缩放世界地图，在不同国家和城市之间探索随机掉落的精选专辑。地图就是你的音乐发现池。",
     icon: Map,
-    bgAccent: "bg-[#c9a04a]/8",
-    borderAccent: "border-[#c9a04a]/15",
-    iconColor: "text-[#c9a04a]/70",
+    bgAccent: "bg-[var(--accent-green)]/8",
+    borderAccent: "border-[var(--accent-green)]/15",
+    iconColor: "text-[var(--accent-green)]/70",
     animation: (
       <div className="relative w-full h-36 bg-black/30 rounded-lg border border-white/[0.04] overflow-hidden flex items-center justify-center">
         <motion.div
@@ -29,7 +29,7 @@ const TOUR_STEPS = [
           transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
           className="absolute inset-0 opacity-10"
           style={{
-            backgroundImage: 'radial-gradient(circle at center, #c9a04a 1px, transparent 1px)',
+            backgroundImage: 'radial-gradient(circle at center, var(--accent-green) 1px, transparent 1px)',
             backgroundSize: '24px 24px'
           }}
         />
@@ -37,17 +37,17 @@ const TOUR_STEPS = [
           initial={{ y: 16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="relative z-10 w-14 h-14 rounded-full border border-[#c9a04a]/20 bg-[#c9a04a]/5 flex items-center justify-center"
+          className="relative z-10 w-14 h-14 rounded-full border border-[var(--accent-green)]/20 bg-[var(--accent-green)]/5 flex items-center justify-center"
         >
-          <Map className="w-7 h-7 text-[#c9a04a]/60" />
+          <Map className="w-7 h-7 text-[var(--accent-green)]/60" />
         </motion.div>
 
         <motion.div
           animate={{ scale: [0, 1, 0], opacity: [0, 0.5, 0] }}
           transition={{ duration: 4, repeat: Infinity, delay: 1.5 }}
-          className="absolute right-1/4 top-1/4 w-6 h-6 rounded-full border border-[#c9a04a]/20"
+          className="absolute right-1/4 top-1/4 w-6 h-6 rounded-full border border-[var(--accent-green)]/20"
         >
-          <div className="w-1.5 h-1.5 rounded-full bg-[#c9a04a]/30 mx-auto mt-1.5" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)]/30 mx-auto mt-1.5" />
         </motion.div>
       </div>
     )
@@ -66,17 +66,17 @@ const TOUR_STEPS = [
           <motion.div
             animate={{ left: ["10%", "40%"], right: ["90%", "20%"] }}
             transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-            className="absolute top-0 bottom-0 bg-gradient-to-r from-[#5a7a8a]/60 to-[#c9a04a]/60 rounded-full"
+            className="absolute top-0 bottom-0 bg-gradient-to-r from-[#5a7a8a]/60 to-[var(--accent-green)]/60 rounded-full"
           />
           <motion.div
             animate={{ left: ["10%", "40%"] }}
             transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-            className="absolute top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-[#ece8e1] rounded-full shadow-sm border border-[#5a7a8a]/30"
+            className="absolute top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-[var(--color-text)] rounded-full shadow-sm border border-[#5a7a8a]/30"
           />
           <motion.div
             animate={{ left: ["90%", "80%"] }}
             transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-            className="absolute top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-[#ece8e1] rounded-full shadow-sm border border-[#c9a04a]/30"
+            className="absolute top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-[var(--color-text)] rounded-full shadow-sm border border-[var(--accent-green)]/30"
           />
         </div>
         <motion.div
@@ -130,9 +130,9 @@ const TOUR_STEPS = [
     title: "快速检索",
     description: "寻找特定的艺人或专辑？按下搜索，本地库与第三方曲库无缝结合，帮你定位世界上任何角落的音乐。",
     icon: Search,
-    bgAccent: "bg-[#c9a04a]/8",
-    borderAccent: "border-[#c9a04a]/15",
-    iconColor: "text-[#c9a04a]/70",
+    bgAccent: "bg-[var(--accent-green)]/8",
+    borderAccent: "border-[var(--accent-green)]/15",
+    iconColor: "text-[var(--accent-green)]/70",
     animation: (
       <div className="relative w-full h-36 bg-black/30 rounded-lg border border-white/[0.04] overflow-hidden flex flex-col items-center justify-center px-6">
         <motion.div
@@ -145,7 +145,7 @@ const TOUR_STEPS = [
             initial={{ width: 0 }}
             animate={{ width: "60%" }}
             transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "linear" }}
-            className="h-3 border-r border-[#c9a04a]/30 overflow-hidden whitespace-nowrap text-[10px] text-[#9a948c] flex items-center"
+            className="h-3 border-r border-[var(--accent-green)]/30 overflow-hidden whitespace-nowrap text-[10px] text-[#9a948c] flex items-center"
           >
             Pink Floyd…
           </motion.div>
@@ -206,11 +206,11 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.94, y: 16, opacity: 0 }}
             transition={{ type: "spring", damping: 26, stiffness: 300 }}
-            className={`relative w-full max-w-md rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl shadow-black/30 overflow-hidden`}
+            className={`relative w-full max-w-md rounded-xl border border-white/[0.06] bg-[var(--bg-secondary)] shadow-2xl shadow-black/30 overflow-hidden`}
           >
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 z-10 p-1 rounded-md bg-black/20 text-[#9a948c] hover:bg-black/40 hover:text-[#ece8e1] transition-all"
+              className="absolute right-4 top-4 z-10 p-1 rounded-md bg-black/20 text-[#9a948c] hover:bg-black/40 hover:text-[var(--color-text)] transition-all"
             >
               <X size="14" />
             </button>
@@ -242,7 +242,7 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
                 >
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <stepInfo.icon className={`w-5 h-5 ${stepInfo.iconColor}`} />
-                    <h2 className={`text-lg font-serif font-semibold text-[#ece8e1] tracking-tight`}>
+                    <h2 className={`text-lg font-serif font-semibold text-[var(--color-text)] tracking-tight`}>
                       {stepInfo.title}
                     </h2>
                   </div>
@@ -259,7 +259,7 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
                     <div
                       key={idx}
                       className={`h-1 rounded-full transition-all duration-300 ${
-                        idx === currentStep ? "w-5 bg-[#c9a04a]/60" : "w-1 bg-white/[0.08]"
+                        idx === currentStep ? "w-5 bg-[var(--accent-green)]/60" : "w-1 bg-white/[0.08]"
                       }`}
                     />
                   ))}
@@ -269,14 +269,14 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
                   {currentStep > 0 && (
                     <button
                       onClick={handlePrev}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all"
                     >
                       <ChevronLeft size="16" />
                     </button>
                   )}
                   <button
                     onClick={handleNext}
-                    className="flex h-9 items-center justify-center gap-1.5 rounded-lg px-4 font-medium text-sm bg-[#c9a04a] text-[#0c0c0c] hover:bg-[#c9a04a]/90 transition-all active:scale-[0.97]"
+                    className="flex h-9 items-center justify-center gap-1.5 rounded-lg px-4 font-medium text-sm bg-[var(--accent-green)] text-[var(--color-background)] hover:bg-[var(--accent-green)]/90 transition-all active:scale-[0.97]"
                   >
                     {currentStep === TOUR_STEPS.length - 1 ? "开始探索" : "下一步"}
                     {currentStep < TOUR_STEPS.length - 1 && <ChevronRight size="15" />}

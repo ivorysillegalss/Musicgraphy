@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
-import { Outfit, Playfair_Display, JetBrains_Mono } from "next/font/google";
+import { Poppins, Righteous, JetBrains_Mono } from "next/font/google";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import "./globals.css";
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+const poppins = Poppins({ 
+  subsets: ["latin"], 
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins" 
+});
+
+const righteous = Righteous({ 
+  subsets: ["latin"], 
+  weight: "400",
+  variable: "--font-righteous" 
+});
+
 const jbMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
 
 export const metadata: Metadata = {
@@ -19,19 +29,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${playfair.variable} ${jbMono.variable}`} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-[#0c0c0c] text-[#ece8e1]">
+    <html lang="en" className={`${poppins.variable} ${righteous.variable} ${jbMono.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased text-primary selection:bg-[rgba(34,197,94,0.3)] selection:text-white" style={{ background: "var(--color-background)", color: "var(--color-text)" }}>
         <LanguageProvider>
           {children}
           <Toaster
             position="bottom-center"
             toastOptions={{
               style: {
-                background: "#1c1c1c",
-                color: "#ece8e1",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "var(--bg-elevated)",
+                color: "var(--color-text)",
+                border: "1px solid var(--border-default)",
                 borderRadius: "12px",
-                fontFamily: "var(--font-outfit)",
+                fontFamily: "var(--font-poppins)",
               },
             }}
           />

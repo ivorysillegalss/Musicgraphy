@@ -96,6 +96,7 @@ export default function Home() {
   const [isMbTokenOpen, setIsMbTokenOpen] = useState(false);
   const [isNeteaseImportOpen, setIsNeteaseImportOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"map" | "shelf">("map");
+  const [appEntered, setAppEntered] = useState(false);
   const [mbTokensInput, setMbTokensInput] = useState("");
   const [isSavingMbTokens, setIsSavingMbTokens] = useState(false);
   const [isConnectingMbOAuth, setIsConnectingMbOAuth] = useState(false);
@@ -696,7 +697,65 @@ export default function Home() {
   }
 
   return (
-    <main className="relative h-screen w-full overflow-hidden bg-[#0c0c0c] text-[#ece8e1] font-sans">
+    <main className="relative h-screen w-full overflow-hidden bg-[var(--color-background)] text-[var(--color-text)] font-sans">
+      <AnimatePresence mode="wait">
+        {!appEntered ? (
+          <motion.div
+            key="splash"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05, filter: "blur(4px)" }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[var(--color-background)]"
+          >
+            <div className="absolute inset-0 pointer-events-none opacity-20">
+              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--color-secondary)]/20 rounded-full blur-[100px]" />
+              <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-[var(--accent-green)]/10 rounded-full blur-[100px]" />
+            </div>
+            
+            <div className="relative z-10 flex flex-col items-center max-w-2xl px-6 text-center">
+              <div className="h-16 w-16 mb-8 rounded-2xl bg-gradient-to-br from-[var(--color-secondary)] to-[var(--color-primary)] border border-white/10 flex items-center justify-center shadow-2xl shadow-[var(--color-secondary)]/30">
+                <span className="text-3xl font-serif font-bold text-white tracking-widest">M</span>
+              </div>
+              
+              <h1 className="text-4xl md:text-5xl font-serif font-bold tracking-tight mb-4 text-white">
+                Dream Music Map
+              </h1>
+              <p className="text-[var(--text-secondary)] text-sm md:text-base mb-12 max-w-md mx-auto leading-relaxed">
+                Map your listening history across geography and time. Experience your musical journey structurally and visually.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                <button
+                  onClick={() => {
+                    setViewMode("map");
+                    setAppEntered(true);
+                  }}
+                  className="px-8 py-4 rounded-xl bg-[var(--color-cta)] text-white font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-[var(--color-cta)]/20 flex items-center justify-center gap-3 w-full sm:w-auto"
+                >
+                  Enter Map View
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setViewMode("shelf");
+                    setAppEntered(true);
+                  }}
+                  className="px-8 py-4 rounded-xl border border-white/[0.08] bg-[var(--bg-elevated)]/[0.02] text-white font-semibold hover:bg-white/[0.06] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 w-full sm:w-auto"
+                >
+                  Enter Shelf Built
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="app"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0 z-0"
+          >
       <AnimatePresence mode="wait">
         {viewMode === "map" ? (
           <motion.div
@@ -760,10 +819,10 @@ export default function Home() {
 
       <button
         onClick={() => setIsLibraryOpen(true)}
-        className="fixed bottom-32 right-6 z-40 flex items-center justify-center h-10 w-10 rounded-full border border-white/[0.06] bg-[#141414]/80 text-[#9a948c] shadow-lg shadow-black/30 hover:bg-[#1c1c1c] hover:text-[#ece8e1] hover:border-white/[0.1] transition-all group"
+        className="fixed bottom-32 right-6 z-40 flex items-center justify-center h-10 w-10 rounded-full border border-white/[0.06] bg-[var(--bg-secondary)]/80 text-[#9a948c] shadow-lg shadow-black/30 hover:bg-[var(--bg-elevated)] hover:text-[var(--color-text)] hover:border-white/[0.1] transition-all group"
         title="Open Library"
       >
-        <Library size="15" className="group-hover:text-[#c9a04a]/70 transition-colors" />
+        <Library size="15" className="group-hover:text-[var(--accent-green)]/70 transition-colors" />
         {favorites.length > 0 && (
           <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#8a4a5a]/80 text-[8px] font-bold text-white">
             {favorites.length > 99 ? "99+" : favorites.length}
@@ -835,6 +894,9 @@ export default function Home() {
           setIsLibraryOpen(false);
         }}
       />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

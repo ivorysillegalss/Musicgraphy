@@ -516,8 +516,8 @@ export function NeteaseImportModal({
             onClick={() => { setAuthType("phone"); resetForm(); }}
             className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               authType === "phone"
-                ? "bg-[#c9a04a]/15 text-[#c9a04a] border border-[#c9a04a]/30"
-                : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[#ece8e1]"
+                ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[var(--color-text)]"
             }`}
           >
             {net.phoneTab}
@@ -526,8 +526,8 @@ export function NeteaseImportModal({
             onClick={() => { setAuthType("qr"); resetForm(); }}
             className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               authType === "qr"
-                ? "bg-[#c9a04a]/15 text-[#c9a04a] border border-[#c9a04a]/30"
-                : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[#ece8e1]"
+                ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[var(--color-text)]"
             }`}
           >
             {net.qrTab}
@@ -536,8 +536,8 @@ export function NeteaseImportModal({
             onClick={() => { setAuthType("cookie"); resetForm(); }}
             className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               authType === "cookie"
-                ? "bg-[#c9a04a]/15 text-[#c9a04a] border border-[#c9a04a]/30"
-                : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[#ece8e1]"
+                ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[var(--color-text)]"
             }`}
           >
             {net.cookieTab}
@@ -555,7 +555,7 @@ export function NeteaseImportModal({
                   value={phone}
                   onChange={(e) => { setPhone(e.target.value); resetAuthOnly(); }}
                   placeholder="13800138000"
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c]"
                 />
               </div>
               <div className="flex-1 space-y-1.5">
@@ -565,20 +565,20 @@ export function NeteaseImportModal({
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); resetAuthOnly(); }}
                   placeholder="********"
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c]"
                 />
               </div>
             </div>
 
             {needCaptcha && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-[#c9a04a]">{net.captchaLabel}</label>
+                <label className="text-[11px] font-medium text-[var(--accent-green)]">{net.captchaLabel}</label>
                 <input
                   type="text"
                   value={captcha}
                   onChange={(e) => setCaptcha(e.target.value)}
                   placeholder={net.captchaHint}
-                  className="w-full rounded-lg bg-black/30 border border-[#c9a04a]/30 px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/60 transition-all placeholder:text-[#9a948c]"
+                  className="w-full rounded-lg bg-black/30 border border-[var(--accent-green)]/30 px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/60 transition-all placeholder:text-[#9a948c]"
                 />
                 <p className="text-[11px] text-[#9a948c]">{net.captchaHint}</p>
               </div>
@@ -593,14 +593,14 @@ export function NeteaseImportModal({
               <button
                 onClick={() => void generateQRCode()}
                 disabled={isProcessing}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#c9a04a]/15 border border-[#c9a04a]/30 px-4 py-6 text-sm text-[#c9a04a] hover:bg-[#c9a04a]/20 transition-all disabled:opacity-40"
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--accent-green)]/15 border border-[var(--accent-green)]/30 px-4 py-6 text-sm text-[var(--accent-green)] hover:bg-[var(--accent-green)]/20 transition-all disabled:opacity-40"
               >
                 <Smartphone className="h-5 w-5" />
                 <span>{net.qrGenerateButton}</span>
               </button>
             ) : isProcessing ? (
               <div className="flex flex-col items-center justify-center py-8 gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-[#c9a04a]" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-green)]" />
                 <p className="text-sm text-[#9a948c]">{qrStatus || "Loading..."}</p>
               </div>
             ) : (
@@ -614,7 +614,7 @@ export function NeteaseImportModal({
                 <p className="text-xs text-[#9a948c] text-center leading-relaxed">
                   {net.qrScanHint}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-[#c9a04a]">
+                <div className="flex items-center gap-2 text-xs text-[var(--accent-green)]">
                   {isQrPolling && <Loader2 className="h-3 w-3 animate-spin" />}
                   <span>{qrStatus}</span>
                 </div>
@@ -622,14 +622,14 @@ export function NeteaseImportModal({
                   {qrStatus === net.qrExpired ? (
                     <button
                       onClick={() => void generateQRCode()}
-                      className="text-xs text-[#c9a04a] hover:underline"
+                      className="text-xs text-[var(--accent-green)] hover:underline"
                     >
                       {net.qrRetry}
                     </button>
                   ) : (
                     <button
                       onClick={() => void generateQRCode()}
-                      className="text-[11px] text-[#9a948c] hover:text-[#ece8e1] underline-offset-2 hover:underline transition-all"
+                      className="text-[11px] text-[#9a948c] hover:text-[var(--color-text)] underline-offset-2 hover:underline transition-all"
                     >
                       Refresh QR
                     </button>
@@ -651,7 +651,7 @@ export function NeteaseImportModal({
                   value={musicU}
                   onChange={(e) => { setMusicU(e.target.value); resetAuthOnly(); }}
                   placeholder="MUSIC_U=001522..."
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c] font-mono text-[10px]"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c] font-mono text-[10px]"
                 />
               </div>
               <div className="flex-1 space-y-1.5">
@@ -661,12 +661,12 @@ export function NeteaseImportModal({
                   value={csrf}
                   onChange={(e) => { setCsrf(e.target.value); resetAuthOnly(); }}
                   placeholder="__csrf=be307d..."
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c] font-mono text-[10px]"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c] font-mono text-[10px]"
                 />
               </div>
             </div>
             <details className="group">
-              <summary className="text-[11px] text-[#9a948c] cursor-pointer hover:text-[#ece8e1] transition-all">
+              <summary className="text-[11px] text-[#9a948c] cursor-pointer hover:text-[var(--color-text)] transition-all">
                 {net.cookieFallbackToggle}
               </summary>
               <div className="mt-2 space-y-1.5">
@@ -676,7 +676,7 @@ export function NeteaseImportModal({
                   onChange={(e) => { setCookieValue(e.target.value); resetAuthOnly(); }}
                   placeholder={net.cookieHint}
                   rows={3}
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c] resize-none"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c] resize-none"
                 />
               </div>
             </details>
@@ -691,8 +691,8 @@ export function NeteaseImportModal({
                 onClick={() => { setImportType("saved"); resetAuthOnly(); }}
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   importType === "saved"
-                    ? "bg-[#c9a04a]/15 text-[#c9a04a] border border-[#c9a04a]/30"
-                    : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[#ece8e1]"
+                    ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                    : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[var(--color-text)]"
                 }`}
               >
                 {net.sourceSaved}
@@ -701,8 +701,8 @@ export function NeteaseImportModal({
                 onClick={() => { setImportType("playlist"); resetAuthOnly(); }}
                 className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   importType === "playlist"
-                    ? "bg-[#c9a04a]/15 text-[#c9a04a] border border-[#c9a04a]/30"
-                    : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[#ece8e1]"
+                    ? "bg-[var(--accent-green)]/15 text-[var(--accent-green)] border border-[var(--accent-green)]/30"
+                    : "bg-black/30 text-[#9a948c] border border-white/[0.06] hover:text-[var(--color-text)]"
                 }`}
               >
                 {net.sourcePlaylist}
@@ -717,7 +717,7 @@ export function NeteaseImportModal({
                   value={playlistUrl}
                   onChange={(e) => { setPlaylistUrl(e.target.value); resetAuthOnly(); }}
                   placeholder="https://music.163.com/playlist?id=123456789"
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c]"
                 />
               </div>
             )}
@@ -735,7 +735,7 @@ export function NeteaseImportModal({
             }}
             min={1}
             max={200}
-            className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
+            className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c]"
           />
         </div>
 
@@ -776,13 +776,13 @@ export function NeteaseImportModal({
           <div className="flex gap-2">
             <button
               onClick={selectAll}
-              className="text-[11px] text-[#c9a04a]/70 hover:text-[#c9a04a] transition-all"
+              className="text-[11px] text-[var(--accent-green)]/70 hover:text-[var(--accent-green)] transition-all"
             >
               {net.selectAll}
             </button>
             <button
               onClick={deselectAll}
-              className="text-[11px] text-[#9a948c] hover:text-[#ece8e1] transition-all"
+              className="text-[11px] text-[#9a948c] hover:text-[var(--color-text)] transition-all"
             >
               {net.deselectAll}
             </button>
@@ -794,8 +794,8 @@ export function NeteaseImportModal({
             onClick={() => setPreviewFilterMode("all")}
             className={`rounded px-2.5 py-1 text-[11px] transition-all ${
               previewFilterMode === "all"
-                ? "bg-[#c9a04a]/20 border border-[#c9a04a]/35 text-[#c9a04a]"
-                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1]"
+                ? "bg-[var(--accent-green)]/20 border border-[var(--accent-green)]/35 text-[var(--accent-green)]"
+                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[var(--color-text)]"
             }`}
           >
             {net.previewFilterAll}
@@ -805,7 +805,7 @@ export function NeteaseImportModal({
             className={`rounded px-2.5 py-1 text-[11px] transition-all ${
               previewFilterMode === "no-candidate"
                 ? "bg-[#8a4a5a]/20 border border-[#8a4a5a]/35 text-[#8a4a5a]"
-                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1]"
+                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[var(--color-text)]"
             }`}
           >
             {net.previewFilterNoCandidate.replace("{count}", String(noCandidateCount))}
@@ -815,7 +815,7 @@ export function NeteaseImportModal({
             className={`rounded px-2.5 py-1 text-[11px] transition-all ${
               previewFilterMode === "candidate-conflict"
                 ? "bg-[#4a7e8a]/20 border border-[#4a7e8a]/35 text-[#74becf]"
-                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[#ece8e1]"
+                : "bg-black/20 border border-white/[0.06] text-[#9a948c] hover:text-[var(--color-text)]"
             }`}
           >
             {net.previewFilterConflict.replace("{count}", String(candidateConflictCount))}
@@ -832,7 +832,7 @@ export function NeteaseImportModal({
                 key={item.dedupKey}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition-all ${
                   checked
-                    ? "bg-[#c9a04a]/8 border border-[#c9a04a]/15"
+                    ? "bg-[var(--accent-green)]/8 border border-[var(--accent-green)]/15"
                     : "bg-black/20 border border-transparent hover:bg-white/[0.03]"
                 }`}
               >
@@ -841,10 +841,10 @@ export function NeteaseImportModal({
                   checked={checked}
                   disabled={!item.isNew || !item.hasCandidate}
                   onChange={() => toggleAlbum(item.dedupKey)}
-                  className="accent-[#c9a04a] h-3.5 w-3.5 rounded"
+                  className="accent-[var(--accent-green)] h-3.5 w-3.5 rounded"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-[#ece8e1] truncate">
+                  <p className="text-xs text-[var(--color-text)] truncate">
                     {item.artistName} — {item.albumTitle}
                   </p>
                   {item.isNew && (
@@ -854,7 +854,7 @@ export function NeteaseImportModal({
                           value={selectedReleaseId}
                           onChange={(e) => updateSelectedRelease(item.dedupKey, e.target.value || null)}
                           disabled={!checked}
-                          className="w-full rounded bg-black/40 border border-white/[0.08] px-2 py-1 text-[11px] text-[#ece8e1] disabled:opacity-50"
+                          className="w-full rounded bg-black/40 border border-white/[0.08] px-2 py-1 text-[11px] text-[var(--color-text)] disabled:opacity-50"
                         >
                           {item.mbCandidates.map((candidate) => (
                             <option key={candidate.releaseId} value={candidate.releaseId}>
@@ -905,7 +905,7 @@ export function NeteaseImportModal({
   function renderImporting() {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-[#c9a04a]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--accent-green)]" />
         <p className="text-sm text-[#9a948c]">{net.importing}</p>
         {error && (
           <div className="rounded-lg border border-[#8a4a5a]/20 bg-[#8a4a5a]/[0.04] px-3 py-2 text-xs text-[#8a4a5a]/90">
@@ -941,7 +941,7 @@ export function NeteaseImportModal({
                   <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
                     {failures.map((f, i) => (
                       <div key={i} className="text-[11px] text-[#9a948c] border-b border-white/[0.03] pb-1">
-                        <span className="text-[#ece8e1]">{f.artistName}</span> — {f.albumTitle}
+                        <span className="text-[var(--color-text)]">{f.artistName}</span> — {f.albumTitle}
                         <br />
                         <span className="text-[#8a4a5a]/60">{f.reason}</span>
                       </div>
@@ -983,13 +983,13 @@ export function NeteaseImportModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.96, opacity: 0, y: 8 }}
             transition={{ type: "spring", damping: 26, stiffness: 340 }}
-            className="w-full max-w-lg overflow-hidden rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl shadow-black/30"
+            className="w-full max-w-lg overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--bg-secondary)] shadow-2xl shadow-black/30"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.04]">
               <div>
-                <h2 className="text-base font-serif font-semibold text-[#ece8e1]">
+                <h2 className="text-base font-serif font-semibold text-[var(--color-text)]">
                   {net.importTitle}
                 </h2>
                 <p className="text-xs text-[#9a948c] mt-0.5">
@@ -1005,7 +1005,7 @@ export function NeteaseImportModal({
               <button
                 onClick={onClose}
                 disabled={isProcessing || isQrPolling || step === "importing"}
-                className="p-1.5 rounded-md text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all disabled:opacity-30"
+                className="p-1.5 rounded-md text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all disabled:opacity-30"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1015,7 +1015,7 @@ export function NeteaseImportModal({
               {/* Info box — only on auth step */}
               {step === "auth" && (
                 <div className="rounded-lg border border-white/[0.04] bg-black/20 p-3 text-xs leading-relaxed text-[#9a948c] flex items-start gap-3">
-                  <Info className="h-4 w-4 mt-0.5 text-[#c9a04a]/60 flex-shrink-0" />
+                  <Info className="h-4 w-4 mt-0.5 text-[var(--accent-green)]/60 flex-shrink-0" />
                   <p>{net.configInfo}</p>
                 </div>
               )}
@@ -1030,14 +1030,14 @@ export function NeteaseImportModal({
                   <button
                     onClick={() => setStep("auth")}
                     disabled={isProcessing}
-                    className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all rounded-lg disabled:opacity-40"
+                    className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all rounded-lg disabled:opacity-40"
                   >
                     {net.backToAuth}
                   </button>
                   <button
                     onClick={() => void handleImport()}
                     disabled={Object.keys(selectedAlbumMap).length === 0 || isProcessing}
-                    className="flex items-center gap-2 rounded-lg bg-[#c9a04a] px-4 py-1.5 text-[11px] font-medium text-[#0c0c0c] hover:bg-[#c9a04a]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                    className="flex items-center gap-2 rounded-lg bg-[var(--accent-green)] px-4 py-1.5 text-[11px] font-medium text-[var(--color-background)] hover:bg-[var(--accent-green)]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                   >
                     {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     {net.importSelected.replace("{count}", String(Object.keys(selectedAlbumMap).length))}
@@ -1049,7 +1049,7 @@ export function NeteaseImportModal({
                 <>
                   <button
                     onClick={onClose}
-                    className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all rounded-lg"
+                    className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all rounded-lg"
                   >
                     {net.closeButton}
                   </button>
@@ -1061,7 +1061,7 @@ export function NeteaseImportModal({
                         (authType === "phone" && (!phone.trim() || !password.trim())) ||
                         (authType === "cookie" && !buildCookieString())
                       }
-                      className="flex items-center gap-2 rounded-lg bg-[#c9a04a] px-4 py-1.5 text-[11px] font-medium text-[#0c0c0c] hover:bg-[#c9a04a]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                      className="flex items-center gap-2 rounded-lg bg-[var(--accent-green)] px-4 py-1.5 text-[11px] font-medium text-[var(--color-background)] hover:bg-[var(--accent-green)]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
                     >
                       {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                       <span>
@@ -1082,7 +1082,7 @@ export function NeteaseImportModal({
                     resetForm();
                     onClose();
                   }}
-                  className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all rounded-lg"
+                  className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all rounded-lg"
                 >
                   {net.closeButton}
                 </button>

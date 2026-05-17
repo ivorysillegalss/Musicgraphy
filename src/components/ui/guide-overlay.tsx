@@ -24,7 +24,7 @@ export function GuideOverlay({ isOpen, onClose, configured }: GuideOverlayProps)
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl"
+            className="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--border-default)] bg-zinc-900 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
@@ -73,7 +73,7 @@ export function GuideOverlay({ isOpen, onClose, configured }: GuideOverlayProps)
                   <p className="mt-1 text-sm text-zinc-400">
                     Login to mark albums as &quot;Listened&quot;. 
                     {!configured && (
-                      <span className="block mt-1 text-amber-500 text-xs py-1 px-2 bg-amber-500/10 rounded border border-amber-500/20">
+                      <span className="block mt-1 text-[var(--text-secondary)]mber-500 text-xs py-1 px-2 bg-amber-500/10 rounded border border-amber-500/20">
                          Demo Mode: Local storage only (local backend not configured).
                       </span>
                     )}

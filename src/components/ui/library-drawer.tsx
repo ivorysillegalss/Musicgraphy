@@ -145,15 +145,15 @@ export function LibraryDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 220 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-[#0c0c0c]/95 border-l border-white/[0.06] shadow-2xl shadow-black/50 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-[var(--color-background)]/95 border-l border-white/[0.06] shadow-2xl shadow-black/50 flex flex-col"
           >
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.04]">
-              <h2 className="text-base font-serif font-semibold text-[#ece8e1] tracking-tight">
+              <h2 className="text-base font-serif font-semibold text-[var(--color-text)] tracking-tight">
                 {t.library.title}
               </h2>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-md hover:bg-white/[0.04] text-[#9a948c] hover:text-[#ece8e1] transition-all"
+                className="p-1.5 rounded-md hover:bg-white/[0.04] text-[#9a948c] hover:text-[var(--color-text)] transition-all"
               >
                 <X size="16" />
               </button>
@@ -168,13 +168,13 @@ export function LibraryDrawer({
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
                 placeholder="By tag"
-                className="bg-black/40 border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-[#ece8e1] placeholder:text-[#9a948c] outline-none focus:border-[#c9a04a]/30 transition-all"
+                className="bg-black/40 border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text)] placeholder:text-[#9a948c] outline-none focus:border-[var(--accent-green)]/30 transition-all"
               />
               <input
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}
                 placeholder="By region"
-                className="bg-black/40 border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-[#ece8e1] placeholder:text-[#9a948c] outline-none focus:border-[#c9a04a]/30 transition-all"
+                className="bg-black/40 border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text)] placeholder:text-[#9a948c] outline-none focus:border-[var(--accent-green)]/30 transition-all"
               />
             </div>
 
@@ -201,7 +201,7 @@ export function LibraryDrawer({
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate text-[#ece8e1]">{album.albumTitle}</p>
+                          <p className="font-medium text-sm truncate text-[var(--color-text)]">{album.albumTitle}</p>
                           <p className="text-xs text-[#9a948c] truncate">{album.artistName}</p>
                           {buildAlbumTags(album).length ? (
                             <div className="mt-1.5 flex flex-wrap gap-1">
@@ -224,7 +224,7 @@ export function LibraryDrawer({
                             </button>
                             <button
                               onClick={() => onLocateFavorite(album)}
-                              className="text-[10px] bg-white/[0.04] text-[#9a948c] px-2 py-0.5 rounded border border-white/[0.04] hover:text-[#ece8e1] hover:bg-white/[0.06] transition-all font-medium"
+                              className="text-[10px] bg-white/[0.04] text-[#9a948c] px-2 py-0.5 rounded border border-white/[0.04] hover:text-[var(--color-text)] hover:bg-white/[0.06] transition-all font-medium"
                             >
                               Locate
                             </button>
@@ -264,7 +264,7 @@ export function LibraryDrawer({
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate text-[#ece8e1]">{record.albumTitle}</p>
+                          <p className="font-medium text-sm truncate text-[var(--color-text)]">{record.albumTitle}</p>
                           <p className="text-xs text-[#9a948c] truncate">{record.artistGeo.artistName}</p>
                           <p className="text-[10px] text-[#9a948c] mt-1 tabular-nums">{record.releaseYear}</p>
                           {buildRecordTags(record).length ? (
@@ -283,7 +283,7 @@ export function LibraryDrawer({
                         <div className="flex flex-col gap-1.5 items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
                           <button
                             onClick={() => onLocateRecord(record)}
-                            className="text-[10px] bg-white/[0.04] text-[#9a948c] px-2 py-0.5 rounded border border-white/[0.04] hover:text-[#ece8e1] hover:bg-white/[0.06] transition-all font-medium"
+                            className="text-[10px] bg-white/[0.04] text-[#9a948c] px-2 py-0.5 rounded border border-white/[0.04] hover:text-[var(--color-text)] hover:bg-white/[0.06] transition-all font-medium"
                           >
                             Locate
                           </button>

@@ -62,6 +62,7 @@ export function SearchOverlay({
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Array<DiscoveryAlbum & { source?: string; tags?: string[] }>>([]);
   const [searchMeta, setSearchMeta] = useState<SearchApiMeta>({});
+  const [hasInteracted, setHasInteracted] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [areaFilter, setAreaFilter] = useState("");
   const [decadeFilter, setDecadeFilter] = useState<string>("");
@@ -244,11 +245,11 @@ export function SearchOverlay({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -12 }}
             transition={{ type: "spring", damping: 26, stiffness: 340 }}
-            className="absolute left-1/2 top-24 z-40 w-full max-w-md -translate-x-1/2 flex flex-col gap-2 p-4"
+            className="absolute left-1/2 top-20 z-40 w-full max-w-2xl -translate-x-1/2 flex flex-col gap-3 p-4"
           >
-            <div className="flex flex-col gap-2 rounded-lg border border-white/[0.06] bg-[#141414]/95 p-3 shadow-xl shadow-black/40">
+            <div className="flex flex-col gap-2 rounded-lg border border-[var(--edge-soft)] bg-[var(--bg-espresso)]/95 p-3 shadow-xl shadow-black/40">
               <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-[#c9a04a]/60 ml-1 flex-shrink-0" />
+                <Search className="w-4 h-4 text-[var(--accent-amber)]/60 ml-1 flex-shrink-0" />
                 <div className="flex-1 grid grid-cols-2 gap-2">
                   <input
                     ref={searchInputRef}
@@ -256,14 +257,18 @@ export function SearchOverlay({
                     value={artistQuery}
                     onChange={(e) => onArtistQueryChange(e.target.value)}
                     placeholder={t.search.artistOrBand}
-                    className="w-full bg-black/30 px-2.5 py-1.5 text-sm text-[#ece8e1] outline-none placeholder:text-[#9a948c] border border-white/[0.06] focus:border-[#c9a04a]/30 transition-all rounded-lg"
+                    onFocus={() => setHasInteracted(true)}
+                    onKeyDown={() => setHasInteracted(true)}
+                    className="w-full bg-[var(--bg-roast)] px-2.5 py-1.5 text-sm text-[var(--text-cream)] outline-none placeholder:text-[var(--text-dim)] border border-[var(--edge-bronze)] focus:border-[var(--accent-amber)]/70 focus:ring-2 focus:ring-[var(--glow-amber)] focus:ring-opacity-40 transition-all rounded-lg"
                   />
                   <input
                     type="text"
                     value={albumQuery}
                     onChange={(e) => onAlbumQueryChange(e.target.value)}
                     placeholder={t.search.albumName}
-                    className="w-full bg-black/30 px-2.5 py-1.5 text-sm text-[#ece8e1] outline-none placeholder:text-[#9a948c] border border-white/[0.06] focus:border-[#c9a04a]/30 transition-all rounded-lg"
+                    onFocus={() => setHasInteracted(true)}
+                    onKeyDown={() => setHasInteracted(true)}
+                    className="w-full bg-[var(--bg-roast)] px-2.5 py-1.5 text-sm text-[var(--text-cream)] outline-none placeholder:text-[var(--text-dim)] border border-[var(--edge-bronze)] focus:border-[var(--accent-amber)]/70 focus:ring-2 focus:ring-[var(--glow-amber)] focus:ring-opacity-40 transition-all rounded-lg"
                   />
                 </div>
                 <button
@@ -271,14 +276,14 @@ export function SearchOverlay({
                     onArtistQueryChange("");
                     onAlbumQueryChange("");
                   }}
-                  className="p-1.5 hover:text-[#ece8e1] text-[#9a948c] hover:bg-white/[0.04] rounded-md transition-all"
+                  className="p-1.5 hover:text-[var(--text-cream)] text-[var(--text-dim)] hover:bg-white/[0.04] rounded-md transition-all"
                   title="Clear"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-2 py-1 hover:bg-white/[0.04] rounded-md text-[#9a948c] hover:text-[#ece8e1] transition-all text-xs"
+                  className="px-2 py-1 hover:bg-white/[0.04] rounded-md text-[var(--text-dim)] hover:text-[var(--text-cream)] transition-all text-xs"
                   title="Close"
                 >
                   <span className="font-medium">Esc</span>
@@ -287,10 +292,10 @@ export function SearchOverlay({
             </div>
 
             {(availableTags.length > 0 || decadeOptions.length > 0) && (
-              <div className="flex flex-wrap gap-2 rounded-lg border border-white/[0.06] bg-[#141414]/80 p-2.5 text-xs backdrop-blur-sm">
+              <div className="flex flex-wrap gap-2 rounded-lg border border-[var(--edge-soft)] bg-[var(--bg-espresso)]/80 p-2.5 text-xs backdrop-blur-sm">
                 {availableTags.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-[#9a948c] mr-1 text-[10px] tracking-wide uppercase">Tags</span>
+                    <span className="text-[var(--text-dim)] mr-1 text-[10px] tracking-wide uppercase">Tags</span>
                     {availableTags.map((tag) => {
                       const active = selectedTags.includes(tag);
                       return (
@@ -303,8 +308,8 @@ export function SearchOverlay({
                           }}
                           className={`px-2 py-0.5 rounded text-[10px] transition-all ${
                             active
-                              ? "bg-[#c9a04a]/10 text-[#c9a04a]/80 border border-[#c9a04a]/20"
-                              : "border border-white/[0.04] bg-white/[0.02] hover:border-white/10 hover:text-[#b0aaa0] text-[#9a948c]"
+                              ? "bg-[var(--accent-amber)]/10 text-[var(--accent-amber)]/80 border border-[var(--accent-amber)]/20"
+                              : "border border-white/[0.04] bg-white/[0.02] hover:border-[var(--border-default)] hover:text-[#b0aaa0] text-[var(--text-dim)]"
                           }`}
                         >
                           {tag}
@@ -320,7 +325,7 @@ export function SearchOverlay({
                     <select
                       value={decadeFilter}
                       onChange={(e) => setDecadeFilter(e.target.value)}
-                      className="bg-black/30 border border-white/[0.06] text-xs rounded px-2 py-1 text-[#b0aaa0] outline-none focus:border-[#c9a04a]/30"
+                      className="bg-[var(--bg-roast)] border border-[var(--edge-bronze)] text-xs rounded px-2 py-1 text-[var(--text-dim)] outline-none focus:border-[var(--accent-amber)]/30"
                     >
                       <option value="">{t.controls.allYears}</option>
                       {decadeOptions.map((d) => (
@@ -336,22 +341,22 @@ export function SearchOverlay({
                     value={areaFilter}
                     onChange={(e) => setAreaFilter(e.target.value)}
                     placeholder="Country / City"
-                    className="bg-black/30 border border-white/[0.06] text-xs rounded px-2 py-1 flex-1 outline-none focus:border-[#c9a04a]/30 text-[#b0aaa0] placeholder:text-[#9a948c]"
+                    className="bg-black/30 border border-white/[0.06] text-xs rounded px-2 py-1 flex-1 outline-none focus:border-[var(--accent-green)]/30 text-[#b0aaa0] placeholder:text-[#9a948c]"
                   />
                 </div>
               </div>
             )}
 
             {(artistQuery.trim() || albumQuery.trim()) && (
-              <div className="flex flex-col gap-1 rounded-lg border border-white/[0.06] bg-[#141414]/95 p-2 shadow-xl shadow-black/40 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col gap-1 rounded-lg border border-[var(--edge-soft)] bg-[var(--bg-espresso)]/95 p-2 shadow-xl shadow-black/40 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 {searchMeta.shouldOfferExternalSearch && !useExternalSearch && (
-                  <div className="mb-1 rounded-lg border border-[#c9a04a]/15 bg-[#c9a04a]/[0.03] p-2.5">
+                  <div className="mb-1 rounded-lg border border-[var(--accent-amber)]/15 bg-[var(--accent-amber)]/[0.03] p-2.5">
                     <p className="text-xs text-[#9a948c] mb-2">
                       {t.search.externalHelp}
                     </p>
                     <button
                       onClick={() => setUseExternalSearch(true)}
-                      className="rounded bg-[#c9a04a]/10 px-2.5 py-1 text-[10px] text-[#c9a04a]/80 hover:bg-[#c9a04a]/20 transition-all border border-[#c9a04a]/15"
+                      className="rounded bg-[var(--accent-amber)]/10 px-2.5 py-1 text-[10px] text-[var(--accent-amber)]/80 hover:bg-[var(--accent-amber)]/20 transition-all border border-[var(--accent-amber)]/15"
                     >
                       {t.search.externalSearch}
                     </button>
@@ -371,9 +376,9 @@ export function SearchOverlay({
                 ) : null}
 
                 {isSearching ? (
-                  <div className="p-6 text-center text-sm text-[#9a948c]">
+                  <div className="p-6 text-center text-sm text-[var(--text-dim)]">
                     <div className="inline-flex items-center gap-2">
-                      <div className="h-1 w-1 rounded-full bg-[#c9a04a]/60 animate-pulse" />
+                      <div className="h-1 w-1 rounded-full bg-[var(--accent-amber)]/60 animate-pulse" />
                       {t.search.searching}
                     </div>
                   </div>
@@ -401,7 +406,7 @@ export function SearchOverlay({
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-[#ece8e1] line-clamp-1">
+                                <div className="text-sm font-medium text-[var(--color-text)] line-clamp-1">
                                   {record.albumTitle}
                                 </div>
                                 <div className="text-xs text-[#9a948c] line-clamp-1">
@@ -432,7 +437,7 @@ export function SearchOverlay({
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-[#ece8e1] line-clamp-1">
+                                <div className="text-sm font-medium text-[var(--color-text)] line-clamp-1">
                                   {album.albumTitle}
                                 </div>
                                 <div className="text-xs text-[#9a948c] line-clamp-1">

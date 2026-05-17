@@ -47,11 +47,11 @@ export const AlbumMarker = memo(function AlbumMarker({
       <div
         className={`w-full h-full rounded-full overflow-hidden border transition-all duration-300 relative ${
           isSelected
-            ? "border-[#c9a04a]/70 shadow-[0_0_20px_rgba(201,160,74,0.35)]"
-            : "border-white/10 hover:border-[#c9a04a]/40 shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+            ? "border-[var(--accent-amber)]/70 shadow-[0_0_20px_rgba(211,155,95,0.35)]"
+            : "border-[var(--border-default)] hover:border-[var(--accent-amber)]/40 shadow-[0_0_10px_rgba(0,0,0,0.45)]"
         }`}
       >
-        <div className="absolute inset-0 bg-[#0c0c0c] animate-pulse" />
+        <div className="absolute inset-0 bg-[var(--color-background)] animate-pulse" />
         <AlbumArtImage
           artist={data.artistName}
           album={data.albumTitle}
@@ -91,7 +91,7 @@ export const UserRecordMarker = memo(function UserRecordMarker({
         onClick();
       }}
     >
-      <div className="w-full h-full rounded-full overflow-hidden border border-[#4a8a6a]/40 shadow-[0_0_8px_rgba(74,138,106,0.25)] hover:border-[#4a8a6a]/70 hover:shadow-[0_0_16px_rgba(74,138,106,0.4)] transition-all bg-[#0c0c0c]">
+      <div className="w-full h-full rounded-full overflow-hidden border border-[var(--border-accent)]/40 shadow-[0_0_8px_rgba(211,155,95,0.2)] hover:border-[var(--accent-amber)]/70 hover:shadow-[0_0_16px_rgba(211,155,95,0.32)] transition-all bg-[var(--color-background)]">
         <AlbumArtImage
           artist={data.artistName}
           album={data.albumTitle}

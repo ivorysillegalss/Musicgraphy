@@ -17,7 +17,7 @@ export function TimelineControl({ timelineRange, onTimelineChange, MIN_YEAR, MAX
       animate={{ y: 0, opacity: 1 }}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] md:w-[600px] z-50 pointer-events-auto"
     >
-      <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
+      <div className="bg-black/40 backdrop-blur-xl border border-[var(--border-default)] rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
         <div className="flex justify-between items-center text-xs font-mono text-zinc-400">
           <span>{MIN_YEAR}</span>
           <div className="flex items-center gap-2">

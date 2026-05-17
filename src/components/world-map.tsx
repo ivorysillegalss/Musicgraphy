@@ -1563,14 +1563,14 @@ export function WorldMap({
           {!isCollisionPanelOpen ? (
             <button
               onClick={() => setIsCollisionPanelOpen(true)}
-              className="rounded-full border border-amber-500/40 bg-black/60 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-amber-200 shadow-lg backdrop-blur hover:bg-black/75"
+              className="rounded-full border border-amber-500/40 bg-black/60 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-secondary)]mber-200 shadow-lg backdrop-blur hover:bg-black/75"
             >
               Collision Tuning
             </button>
           ) : (
             <div className="w-[320px] rounded-xl border border-white/15 bg-black/75 p-3 text-zinc-200 shadow-2xl backdrop-blur">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-200">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]mber-200">
                   Collision Tuning
                 </p>
                 <button
@@ -1753,7 +1753,7 @@ export function WorldMap({
         }}
       />
 
-      <div className="w-full h-full bg-[#0c0c0c] relative overflow-hidden">
+      <div className="w-full h-full bg-[var(--color-background)] relative overflow-hidden">
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="w-full h-full"
@@ -1764,7 +1764,7 @@ export function WorldMap({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         >
-          <rect x={0} y={0} width={SVG_WIDTH} height={SVG_HEIGHT} fill="#0c0c0c" />
+          <rect x={0} y={0} width={SVG_WIDTH} height={SVG_HEIGHT} fill="var(--color-background)" />
           <MemoizedGeographies geographies={worldGeographies} pathBuilder={pathBuilder} />
         </svg>
 
@@ -1835,13 +1835,13 @@ export function WorldMap({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[#141414] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
+            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[var(--bg-secondary)] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
           >
             <button
               type="button"
               aria-label="Close popup"
               onClick={() => setSelectedDiscovery(null)}
-              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[#1c1c1c] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[#ece8e1]"
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[var(--bg-elevated)] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[var(--color-text)]"
             >
               <X className="h-2.5 w-2.5" strokeWidth={2} />
             </button>
@@ -1854,7 +1854,7 @@ export function WorldMap({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-serif font-semibold truncate text-[#ece8e1] text-sm">{selectedDiscovery.albumTitle}</p>
+                <p className="font-serif font-semibold truncate text-[var(--color-text)] text-sm">{selectedDiscovery.albumTitle}</p>
                 <p className="text-[#5a5854] truncate text-xs mt-0.5">{selectedDiscovery.artistName}</p>
                 <p className="text-[#5a5854] text-[10px] mt-1 tabular-nums font-mono">
                   {selectedDiscovery.releaseYear} · {selectedDiscovery.countryCode}/{selectedDiscovery.cityName}
@@ -1880,7 +1880,7 @@ export function WorldMap({
             <button
               type="button"
               onClick={() => onToggleFavoriteRef.current(selectedDiscovery)}
-              className="flex-1 rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-[#5a5854] transition-all hover:bg-white/[0.06] hover:text-[#ece8e1] border border-white/[0.04]"
+              className="flex-1 rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-[#5a5854] transition-all hover:bg-white/[0.06] hover:text-[var(--color-text)] border border-white/[0.04]"
             >
               {favoritesRef.current.some(f =>
                   f.id === selectedDiscovery.id ||
@@ -1900,18 +1900,18 @@ export function WorldMap({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[#141414] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
+            className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[var(--bg-secondary)] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
         >
           <button
             type="button"
             aria-label="Close popup"
             onClick={() => setSelectedUserRecordId(null)}
-            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[#1c1c1c] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[#ece8e1]"
+            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[var(--bg-elevated)] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[var(--color-text)]"
           >
             <X className="h-2.5 w-2.5" strokeWidth={2} />
           </button>
           <div className="flex gap-3 items-center">
-            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[#4a8a6a]/50 ring-offset-1 ring-offset-[#0c0c0c] relative">
+            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[#4a8a6a]/50 ring-offset-1 ring-offset-[var(--color-background)] relative">
               <AlbumArtImage
                 artist={selectedUserRecord.artistGeo.artistName}
                 album={selectedUserRecord.albumTitle}

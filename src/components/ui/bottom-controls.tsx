@@ -42,7 +42,7 @@ export function BottomControls({
           height: isExpanded ? 100 : 34,
         }}
         transition={{ type: "spring", bounce: 0.12, duration: 0.6 }}
-        className="pointer-events-auto flex flex-col justify-center bg-[#141414]/90 border border-white/[0.06] shadow-xl shadow-black/40 overflow-hidden relative"
+        className="pointer-events-auto flex flex-col justify-center bg-[var(--bg-secondary)]/90 border border-white/[0.06] shadow-xl shadow-black/40 overflow-hidden relative"
       >
         <AnimatePresence initial={false}>
           {!isExpanded ? (
@@ -53,7 +53,7 @@ export function BottomControls({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}
               onClick={() => setIsExpanded(true)}
-              className="absolute inset-0 flex items-center justify-center gap-2 text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.02] transition-colors cursor-pointer"
+              className="absolute inset-0 flex items-center justify-center gap-2 text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.02] transition-colors cursor-pointer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 flex-shrink-0">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -76,7 +76,7 @@ export function BottomControls({
             >
               <div className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-sm font-serif font-semibold text-[#ece8e1] tabular-nums tracking-tight">
+                  <h2 className="text-sm font-serif font-semibold text-[var(--color-text)] tabular-nums tracking-tight">
                     {timelineRange.min} — {timelineRange.max}
                   </h2>
                   <div className="h-3 w-px bg-white/[0.06]" />
@@ -107,14 +107,14 @@ export function BottomControls({
                   onValueChange={([min, max]) => setTimelineRange({ min, max })}
                 >
                   <Slider.Track className="bg-white/[0.06] relative grow rounded-full h-[3px]">
-                    <Slider.Range className="absolute bg-[#c9a04a]/60 rounded-full h-full" />
+                    <Slider.Range className="absolute bg-[var(--accent-green)]/60 rounded-full h-full" />
                   </Slider.Track>
                   <Slider.Thumb
-                    className="block w-3 h-3 bg-[#ece8e1] border border-[#c9a04a]/40 rounded-full shadow-sm transition-transform hover:scale-125 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#c9a04a]/40 cursor-grab active:cursor-grabbing"
+                    className="block w-3 h-3 bg-[var(--color-text)] border border-[var(--accent-green)]/40 rounded-full shadow-sm transition-transform hover:scale-125 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent-green)]/40 cursor-grab active:cursor-grabbing"
                     aria-label="Minimum Year"
                   />
                   <Slider.Thumb
-                    className="block w-3 h-3 bg-[#ece8e1] border border-[#c9a04a]/40 rounded-full shadow-sm transition-transform hover:scale-125 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#c9a04a]/40 cursor-grab active:cursor-grabbing"
+                    className="block w-3 h-3 bg-[var(--color-text)] border border-[var(--accent-green)]/40 rounded-full shadow-sm transition-transform hover:scale-125 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent-green)]/40 cursor-grab active:cursor-grabbing"
                     aria-label="Maximum Year"
                   />
                 </Slider.Root>

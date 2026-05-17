@@ -52,17 +52,17 @@ export function MbTokenModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.96, opacity: 0, y: 8 }}
             transition={{ type: "spring", damping: 26, stiffness: 340 }}
-            className="w-full max-w-lg overflow-hidden rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl shadow-black/30"
+            className="w-full max-w-lg overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--bg-secondary)] shadow-2xl shadow-black/30"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.04]">
               <div>
-                <h2 className="text-base font-serif font-semibold text-[#ece8e1]">MusicBrainz Tokens</h2>
+                <h2 className="text-base font-serif font-semibold text-[var(--color-text)]">MusicBrainz Tokens</h2>
                 <p className="text-xs text-[#9a948c] mt-0.5">Paste 1-8 user MB tokens, separated by newlines or commas.</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-md text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+                className="p-1.5 rounded-md text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -70,7 +70,7 @@ export function MbTokenModal({
 
             <div className="p-6 space-y-4">
               <div className="rounded-lg border border-white/[0.04] bg-black/20 p-4 text-sm flex items-start gap-3">
-                <Info className="h-4 w-4 mt-0.5 text-[#c9a04a]/60 flex-shrink-0" />
+                <Info className="h-4 w-4 mt-0.5 text-[var(--accent-green)]/60 flex-shrink-0" />
                 <div className="space-y-1 text-xs leading-relaxed text-[#9a948c]">
                   <p>Each token is tied to a user and has rate limits when using the MB Web Service.</p>
                   <p>Tokens saved here are only used for your searches; if not provided, the system will fall back to anonymous/global tokens.</p>
@@ -87,7 +87,7 @@ export function MbTokenModal({
                       }
                     }}
                     disabled={!oauthEnabled || isConnectingOAuth}
-                    className="rounded-lg bg-[#5a7a8a]/80 px-3 py-1.5 text-xs font-medium text-[#ece8e1] hover:bg-[#5a7a8a] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
+                    className="rounded-lg bg-[#5a7a8a]/80 px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[#5a7a8a] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex-shrink-0"
                   >
                     {isConnectingOAuth ? "Connecting..." : "Connect OAuth"}
                   </button>
@@ -100,7 +100,7 @@ export function MbTokenModal({
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
                   rows={5}
-                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2.5 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c] resize-none"
+                  className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-3 py-2.5 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c] resize-none"
                   placeholder={"tokenA\ntokenB\ntokenC"}
                 />
                 <div className="flex items-center justify-between text-[11px] text-[#9a948c]">
@@ -125,7 +125,7 @@ export function MbTokenModal({
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/[0.04] bg-black/10">
               <button
                 onClick={onClose}
-                className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all rounded-lg"
+                className="px-4 py-1.5 text-[11px] font-medium text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all rounded-lg"
                 disabled={isSaving}
               >
                 Cancel
@@ -133,7 +133,7 @@ export function MbTokenModal({
               <button
                 onClick={() => void onSave()}
                 disabled={isSaving || isConnectingOAuth}
-                className="flex items-center gap-2 rounded-lg bg-[#c9a04a] px-4 py-1.5 text-[11px] font-medium text-[#0c0c0c] hover:bg-[#c9a04a]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                className="flex items-center gap-2 rounded-lg bg-[var(--accent-green)] px-4 py-1.5 text-[11px] font-medium text-[var(--color-background)] hover:bg-[var(--accent-green)]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 <span>Save</span>

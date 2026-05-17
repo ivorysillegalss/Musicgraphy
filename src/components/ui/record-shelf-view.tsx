@@ -150,16 +150,16 @@ const VinylRecordCard = memo(function VinylRecordCard({
           {/* Label */}
           <div className="absolute inset-[30%] rounded-full bg-gradient-to-br from-[#2a1a1a] to-[#1a1010] ring-[1px] ring-white/[0.04] shadow-inner shadow-black/40" />
           {/* Spindle */}
-          <div className="absolute inset-[44%] rounded-full bg-[#0c0c0c] ring-[1px] ring-white/[0.06]" />
+          <div className="absolute inset-[44%] rounded-full bg-[var(--color-background)] ring-[1px] ring-white/[0.06]" />
         </motion.div>
 
         {/* Glow aura on hover */}
         <div className="absolute -inset-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-          <div className="w-full h-full rounded-xl bg-gradient-to-b from-[#c9a04a]/10 via-transparent to-[#c9a04a]/5 blur-xl" />
+          <div className="w-full h-full rounded-xl bg-gradient-to-b from-[var(--accent-green)]/10 via-transparent to-[var(--accent-green)]/5 blur-xl" />
         </div>
 
         {/* Album cover */}
-        <div className="relative w-full h-full rounded-lg overflow-hidden shadow-lg shadow-black/50 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-black/80 group-hover:ring-2 group-hover:ring-[#c9a04a]/25 group-hover:brightness-110">
+        <div className="relative w-full h-full rounded-lg overflow-hidden shadow-lg shadow-black/50 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-black/80 group-hover:ring-2 group-hover:ring-[var(--accent-green)]/25 group-hover:brightness-110">
           <AlbumArtImage
             artist={record.artistGeo.artistName}
             album={record.albumTitle}
@@ -174,10 +174,10 @@ const VinylRecordCard = memo(function VinylRecordCard({
 
       {/* Labels */}
       <div className="text-center max-w-[140px] px-1">
-        <p className="text-xs font-[450] text-[#ece8e1] truncate leading-tight group-hover:text-white transition-colors duration-300">
+        <p className="text-xs font-[450] text-[var(--color-text)] truncate leading-tight group-hover:text-white transition-colors duration-300">
           {record.artistGeo.artistName}
         </p>
-        <p className="text-[10px] text-[#8a8680] truncate mt-0.5 leading-tight group-hover:text-[#a09888] transition-colors duration-300">
+        <p className="text-[10px] text-secondary truncate mt-0.5 leading-tight group-hover:text-[#a09888] transition-colors duration-300">
           {record.albumTitle}
         </p>
       </div>
@@ -252,12 +252,12 @@ const StackCard = memo(function StackCard({
 
         {/* Glow aura */}
         <div className="absolute -inset-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ zIndex: 3 }}>
-          <div className="w-full h-full rounded-xl bg-gradient-to-b from-[#c9a04a]/10 via-transparent to-[#c9a04a]/5 blur-xl" />
+          <div className="w-full h-full rounded-xl bg-gradient-to-b from-[var(--accent-green)]/10 via-transparent to-[var(--accent-green)]/5 blur-xl" />
         </div>
 
         {/* Top cover */}
         <div
-          className="relative w-full h-full rounded-lg overflow-hidden shadow-lg shadow-black/50 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-black/80 group-hover:ring-2 group-hover:ring-[#c9a04a]/25 group-hover:brightness-110"
+          className="relative w-full h-full rounded-lg overflow-hidden shadow-lg shadow-black/50 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-black/80 group-hover:ring-2 group-hover:ring-[var(--accent-green)]/25 group-hover:brightness-110"
           style={{ zIndex: 2 }}
         >
           <AlbumArtImage
@@ -268,17 +268,17 @@ const StackCard = memo(function StackCard({
         </div>
 
         {/* Count badge */}
-        <div className="absolute -top-1.5 -right-1.5 z-10 w-[22px] h-[22px] rounded-full bg-[#c9a04a] text-[#0c0c0c] text-[10px] font-bold flex items-center justify-center shadow-lg shadow-black/40 ring-1 ring-[#c9a04a]/30">
+        <div className="absolute -top-1.5 -right-1.5 z-10 w-[22px] h-[22px] rounded-full bg-[var(--accent-green)] text-[var(--color-background)] text-[10px] font-bold flex items-center justify-center shadow-lg shadow-black/40 ring-1 ring-[var(--accent-green)]/30">
           {count}
         </div>
       </div>
 
       {/* Labels */}
       <div className="text-center max-w-[140px] px-1">
-        <p className="text-xs font-[450] text-[#ece8e1] truncate leading-tight group-hover:text-white transition-colors duration-300">
+        <p className="text-xs font-[450] text-[var(--color-text)] truncate leading-tight group-hover:text-white transition-colors duration-300">
           {topRecord.artistGeo.artistName}
         </p>
-        <p className="text-[10px] text-[#8a8680] truncate mt-0.5 leading-tight group-hover:text-[#a09888] transition-colors duration-300">
+        <p className="text-[10px] text-secondary truncate mt-0.5 leading-tight group-hover:text-[#a09888] transition-colors duration-300">
           {count} {count > 1 ? "albums" : "album"}
         </p>
       </div>
@@ -339,18 +339,18 @@ function DetailModal({
             exit={{ opacity: 0, scale: 0.92, y: 20 }}
             transition={{ type: "spring", damping: 26, stiffness: 260 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-lg bg-[#141414]/95 border border-white/[0.06] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
+            className="relative w-full max-w-lg bg-[var(--bg-secondary)]/95 border border-white/[0.06] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
           >
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-[#8a8680] hover:text-[#ece8e1] hover:bg-black/80 transition-all backdrop-blur-sm"
+              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-secondary hover:text-[var(--color-text)] hover:bg-black/80 transition-all backdrop-blur-sm"
             >
               <X size={16} />
             </button>
 
             {/* Hero: Cover with vinyl behind */}
-            <div className="w-full aspect-[3/2] relative overflow-hidden bg-[#0c0c0c] flex items-center justify-center">
+            <div className="w-full aspect-[3/2] relative overflow-hidden bg-[var(--color-background)] flex items-center justify-center">
               {/* Spinning vinyl behind cover */}
               <motion.div
                 className="absolute w-[70%] aspect-square rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#0d0d0d] to-[#1a1a1a] shadow-inner shadow-black/70 ring-[1px] ring-white/[0.03]"
@@ -361,7 +361,7 @@ function DetailModal({
                 <div className="absolute inset-[28%] rounded-full ring-[1px] ring-white/[0.015]" />
                 <div className="absolute inset-[36%] rounded-full ring-[1px] ring-white/[0.01]" />
                 <div className="absolute inset-[30%] rounded-full bg-gradient-to-br from-[#2a1a1a] to-[#1a1010] ring-[1px] ring-white/[0.04]" />
-                <div className="absolute inset-[44%] rounded-full bg-[#0c0c0c] ring-[1px] ring-white/[0.06]" />
+                <div className="absolute inset-[44%] rounded-full bg-[var(--color-background)] ring-[1px] ring-white/[0.06]" />
               </motion.div>
 
               <AlbumArtImage
@@ -369,13 +369,13 @@ function DetailModal({
                 album={record.albumTitle}
                 className="h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0c] via-[#0c0c0c]/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-background)] via-[var(--color-background)]/20 to-transparent" />
             </div>
 
             {/* Details */}
             <div className="p-6 pt-4 space-y-5">
               <div>
-                <h2 className="text-xl font-serif font-bold text-[#ece8e1] leading-tight tracking-tight">
+                <h2 className="text-xl font-serif font-bold text-[var(--color-text)] leading-tight tracking-tight">
                   {record.albumTitle}
                 </h2>
                 <p className="text-sm text-[#9a948c] mt-1 font-[450]">
@@ -427,14 +427,14 @@ function DetailModal({
                       }}
                       className={`p-0.5 transition-all ${
                         filled
-                          ? "text-[#c9a04a] fill-[#c9a04a]"
+                          ? "text-[var(--accent-green)] fill-[var(--accent-green)]"
                           : "text-[#3a3835] hover:text-[#5a5854]"
                       } ${updatingScore ? "opacity-50 cursor-wait" : "cursor-pointer hover:scale-110"}`}
                     >
                       <StarI
                         className={`w-5 h-5 transition-transform ${
                           filled
-                            ? "text-[#c9a04a] fill-[#c9a04a]"
+                            ? "text-[var(--accent-green)] fill-[var(--accent-green)]"
                             : "text-[#3a3835]"
                         }`}
                       />
@@ -449,7 +449,7 @@ function DetailModal({
                   <p className="text-[9px] text-[#5a5854] uppercase tracking-[0.15em] font-medium">
                     {isZh ? "听过" : "Listened"}
                   </p>
-                  <p className="text-xs text-[#ece8e1] tabular-nums font-[450]">
+                  <p className="text-xs text-[var(--color-text)] tabular-nums font-[450]">
                     {fmtDate(record.listenAt, isZh)}
                   </p>
                 </div>
@@ -457,7 +457,7 @@ function DetailModal({
                   <p className="text-[9px] text-[#5a5854] uppercase tracking-[0.15em] font-medium">
                     {isZh ? "发行" : "Released"}
                   </p>
-                  <p className="text-xs text-[#ece8e1] tabular-nums font-[450]">
+                  <p className="text-xs text-[var(--color-text)] tabular-nums font-[450]">
                     {record.releaseYear || "—"}
                   </p>
                 </div>
@@ -465,7 +465,7 @@ function DetailModal({
                   <p className="text-[9px] text-[#5a5854] uppercase tracking-[0.15em] font-medium">
                     {isZh ? "评分" : "Score"}
                   </p>
-                  <p className="text-xs text-[#ece8e1] tabular-nums font-[450]">
+                  <p className="text-xs text-[var(--color-text)] tabular-nums font-[450]">
                     {record.score}/10
                   </p>
                 </div>
@@ -477,7 +477,7 @@ function DetailModal({
                   {tags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/[0.03] text-[#8a8680] border border-white/[0.04] font-medium"
+                      className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/[0.03] text-secondary border border-white/[0.04] font-medium"
                     >
                       {tag}
                     </span>
@@ -661,7 +661,7 @@ export function RecordShelfView({
   const totalAlbums = groups.reduce((s, g) => s + g.records.length, 0);
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[#0c0c0c] selection:bg-[#c9a04a]/20">
+    <div className="absolute inset-0 overflow-hidden bg-[var(--color-background)] selection:bg-[var(--accent-green)]/20">
       {/* ── Ambient Noise, Light & Vignette ── */}
       <div
         className="fixed inset-0 pointer-events-none z-0 opacity-[0.02]"
@@ -678,7 +678,7 @@ export function RecordShelfView({
           height: "700px",
           opacity: 0.04,
           background:
-            "radial-gradient(ellipse at center, #c9a04a 0%, transparent 70%)",
+            "radial-gradient(ellipse at center, var(--accent-green) 0%, transparent 70%)",
         }}
       />
       {/* Warm bottom glow */}
@@ -689,7 +689,7 @@ export function RecordShelfView({
           height: "400px",
           opacity: 0.025,
           background:
-            "radial-gradient(ellipse at center, #c9a04a 0%, transparent 70%)",
+            "radial-gradient(ellipse at center, var(--accent-green) 0%, transparent 70%)",
         }}
       />
       {/* Subtle vignette */}
@@ -702,10 +702,10 @@ export function RecordShelfView({
       />
 
       {/* ── Header ── */}
-      <div className="relative z-10 sticky top-0 bg-gradient-to-b from-[#0c0c0c] via-[#0c0c0c]/95 to-transparent pt-[72px] pb-5 px-6 md:px-10">
+      <div className="relative z-10 sticky top-0 bg-gradient-to-b from-[var(--color-background)] via-[var(--color-background)]/95 to-transparent pt-[72px] pb-5 px-6 md:px-10">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div>
-            <h2 className="text-lg font-serif font-bold text-[#ece8e1] tracking-tight">
+            <h2 className="text-lg font-serif font-bold text-[var(--color-text)] tracking-tight">
               {t.shelf.title}
             </h2>
             <p className="text-[11px] text-[#5a5854] mt-0.5 tabular-nums">
@@ -713,7 +713,7 @@ export function RecordShelfView({
             </p>
           </div>
 
-          <div className="flex items-center gap-1 bg-[#141414]/80 border border-white/[0.06] rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-[var(--bg-secondary)]/80 border border-white/[0.06] rounded-lg p-0.5">
             {sortItems.map(({ mode, icon: Icon, label }) => (
               <button
                 key={mode}
@@ -721,8 +721,8 @@ export function RecordShelfView({
                 onClick={() => handleSortMode(mode)}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all ${
                   sortMode === mode
-                    ? "bg-[#c9a04a]/10 text-[#c9a04a] border border-[#c9a04a]/15 shadow-sm"
-                    : "text-[#5a5854] hover:text-[#8a8680] border border-transparent"
+                    ? "bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/15 shadow-sm"
+                    : "text-[#5a5854] hover:text-secondary border border-transparent"
                 }`}
               >
                 <Icon size={12} />
@@ -740,7 +740,7 @@ export function RecordShelfView({
       >
         {groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[60vh] text-center max-w-7xl mx-auto">
-            <div className="w-20 h-20 rounded-full bg-[#141414] border border-white/[0.06] flex items-center justify-center mb-5">
+            <div className="w-20 h-20 rounded-full bg-[var(--bg-secondary)] border border-white/[0.06] flex items-center justify-center mb-5">
               <svg
                 width="32"
                 height="32"
@@ -773,13 +773,13 @@ export function RecordShelfView({
               >
                 {/* Section Header */}
                 <div className="flex items-center gap-5 mb-8 select-none">
-                  <span className="text-6xl md:text-7xl font-serif font-bold text-[#ece8e1]/[0.04] leading-none tracking-tight">
+                  <span className="text-[var(--text-secondary)]xl md:text-7xl font-serif font-bold text-[var(--color-text)]/[0.04] leading-none tracking-tight">
                     {group.key}
                   </span>
                   <div className="flex-1 h-px relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#c9a04a]/15 via-[#c9a04a]/[0.04] to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-green)]/15 via-[var(--accent-green)]/[0.04] to-transparent" />
                     {/* Ornament */}
-                    <div className="absolute left-1/2 -top-[3px] -translate-x-1/2 w-1.5 h-1.5 rotate-45 bg-[#c9a04a]/20 ring-[1px] ring-[#c9a04a]/10" />
+                    <div className="absolute left-1/2 -top-[3px] -translate-x-1/2 w-1.5 h-1.5 rotate-45 bg-[var(--accent-green)]/20 ring-[1px] ring-[var(--accent-green)]/10" />
                   </div>
                   <span className="text-[10px] font-mono text-[#5a5854] tabular-nums tracking-wider">
                     {String(group.records.length).padStart(2, "0")}
@@ -789,7 +789,7 @@ export function RecordShelfView({
                 {/* Non-artist label */}
                 {sortMode !== "artist" && (
                   <div className="mb-4 px-1">
-                    <span className="text-xs font-medium text-[#8a8680]">
+                    <span className="text-xs font-medium text-secondary">
                       {group.label}
                     </span>
                   </div>
@@ -880,7 +880,7 @@ export function RecordShelfView({
                     <div className="absolute top-[40%] left-[5%] right-[5%] h-px bg-gradient-to-r from-transparent via-[#3a2818]/20 to-transparent" />
                     <div className="absolute top-[70%] left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-[#3a2818]/15 to-transparent" />
                     {/* Gold accent strip */}
-                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#c9a04a]/12 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--accent-green)]/12 to-transparent" />
                     {/* Bottom shadow */}
                     <div className="absolute bottom-0 left-0 right-0 h-px bg-black/40" />
                   </div>
@@ -895,10 +895,10 @@ export function RecordShelfView({
       {sortMode === "artist" && records.length > 0 && (
         <nav className="fixed right-4 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col items-center">
           {/* Panel background */}
-          <div className="absolute inset-0 -left-3 rounded-xl bg-[#0c0c0c]/60 backdrop-blur-sm border border-white/[0.04] shadow-lg shadow-black/30" />
+          <div className="absolute inset-0 -left-3 rounded-xl bg-[var(--color-background)]/60 backdrop-blur-sm border border-white/[0.04] shadow-lg shadow-black/30" />
 
           {/* Gold accent line */}
-          <div className="absolute top-3 bottom-3 left-0 w-px bg-gradient-to-b from-transparent via-[#c9a04a]/10 to-transparent" />
+          <div className="absolute top-3 bottom-3 left-0 w-px bg-gradient-to-b from-transparent via-[var(--accent-green)]/10 to-transparent" />
 
           <div className="relative flex flex-col items-center py-3 px-2 gap-[2px]">
             {allLetters.map((letter) => {
@@ -910,14 +910,14 @@ export function RecordShelfView({
                   onClick={() => active && scrollToSection(letter)}
                   className={`relative text-[9px] font-mono leading-none py-[3px] px-[6px] rounded transition-all ${
                     active
-                      ? "text-[#5a5854] hover:text-[#c9a04a] hover:bg-[#c9a04a]/5 cursor-pointer"
-                      : "text-[#1c1c1c] cursor-default"
+                      ? "text-[#5a5854] hover:text-[var(--accent-green)] hover:bg-[var(--accent-green)]/5 cursor-pointer"
+                      : "text-[var(--bg-elevated)] cursor-default"
                   }`}
                   disabled={!active}
                 >
                   {letter}
                   {active && (
-                    <span className="absolute -right-[2px] top-1/2 -translate-y-1/2 w-[2px] h-[2px] rounded-full bg-[#c9a04a]/30" />
+                    <span className="absolute -right-[2px] top-1/2 -translate-y-1/2 w-[2px] h-[2px] rounded-full bg-[var(--accent-green)]/30" />
                   )}
                 </button>
               );
@@ -926,7 +926,7 @@ export function RecordShelfView({
               <button
                 type="button"
                 onClick={() => scrollToSection("#")}
-                className="text-[9px] font-mono leading-none py-[3px] px-[6px] rounded text-[#5a5854] hover:text-[#c9a04a] hover:bg-[#c9a04a]/5 transition-all cursor-pointer"
+                className="text-[9px] font-mono leading-none py-[3px] px-[6px] rounded text-[#5a5854] hover:text-[var(--accent-green)] hover:bg-[var(--accent-green)]/5 transition-all cursor-pointer"
               >
                 #
               </button>
@@ -946,7 +946,7 @@ export function RecordShelfView({
             onClick={() =>
               scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
             }
-            className="fixed bottom-8 right-8 z-10 p-2.5 rounded-full bg-[#141414]/80 border border-white/[0.06] text-[#5a5854] hover:text-[#c9a04a] hover:border-[#c9a04a]/20 shadow-lg backdrop-blur-sm transition-all"
+            className="fixed bottom-8 right-8 z-10 p-2.5 rounded-full bg-[var(--bg-secondary)]/80 border border-white/[0.06] text-[#5a5854] hover:text-[var(--accent-green)] hover:border-[var(--accent-green)]/20 shadow-lg backdrop-blur-sm transition-all"
           >
             <ChevronUp size={16} />
           </motion.button>

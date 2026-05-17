@@ -22,4 +22,15 @@ const navbar = fs.readFileSync("src/components/ui/app-navbar.tsx", "utf8");
 assert.match(navbar, /bg-\[var\(--bg-espresso\)\]/, "navbar espresso bg missing");
 assert.match(navbar, /border-\[var\(--edge-soft\)\]/, "navbar soft border missing");
 
+const searchOverlay = fs.readFileSync("src/components/ui/search-overlay.tsx", "utf8");
+assert.match(searchOverlay, /bg-\[var\(--bg-roast\)\]/, "search input bg-roast missing");
+assert.match(searchOverlay, /border-\[var\(--edge-bronze\)\]/, "search input edge-bronze missing");
+
+const mapControls = fs.readFileSync("src/components/ui/map-controls.tsx", "utf8");
+assert.match(mapControls, /accent-amber/, "map controls accent-amber missing");
+assert.match(mapControls, /edge-soft/, "map controls edge-soft missing");
+
+const markers = fs.readFileSync("src/components/ui/map-marker/album-marker.tsx", "utf8");
+assert.match(markers, /accent-amber/, "album marker accent-amber missing");
+
 console.log("theme-smoke: OK");

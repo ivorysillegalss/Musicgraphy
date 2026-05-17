@@ -43,16 +43,16 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.96, opacity: 0, y: 8 }}
             transition={{ type: "spring", damping: 28, stiffness: 340 }}
-            className="w-full max-w-sm overflow-hidden rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl shadow-black/40"
+            className="w-full max-w-sm overflow-hidden rounded-xl border border-white/[0.06] bg-[var(--bg-secondary)] shadow-2xl shadow-black/40"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.04]">
-              <h2 className="text-base font-serif font-semibold text-[#ece8e1]">
+              <h2 className="text-base font-serif font-semibold text-[var(--color-text)]">
                 {isLogin ? "Sign In" : "Create Account"}
               </h2>
               <button
                 onClick={onClose}
-                className="p-1 rounded-md text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+                className="p-1 rounded-md text-[#9a948c] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -68,7 +68,7 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-9 py-2.5 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
+                    className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-9 py-2.5 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c]"
                     placeholder="you@example.com"
                   />
                 </div>
@@ -83,7 +83,7 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-9 py-2.5 text-sm text-[#ece8e1] focus:outline-none focus:border-[#c9a04a]/30 transition-all placeholder:text-[#9a948c]"
+                    className="w-full rounded-lg bg-black/30 border border-white/[0.06] px-9 py-2.5 text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--accent-green)]/30 transition-all placeholder:text-[#9a948c]"
                     placeholder="••••••••"
                   />
                 </div>
@@ -103,7 +103,7 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-10 rounded-lg bg-[#c9a04a] hover:bg-[#c9a04a]/90 text-[#0c0c0c] font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                className="w-full h-10 rounded-lg bg-[var(--accent-green)] hover:bg-[var(--accent-green)]/90 text-[var(--color-background)] font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isLogin ? "Sign In" : "Sign Up")}
               </button>
@@ -115,7 +115,7 @@ export function AuthModal({ isOpen, onClose, onSignIn, onSignUp, isLoading, erro
                 <button
                   type="button"
                   onClick={() => setIsLogin(!isLogin)}
-                  className="font-medium text-[#c9a04a]/80 hover:text-[#c9a04a] transition-colors"
+                  className="font-medium text-[var(--accent-green)]/80 hover:text-[var(--accent-green)] transition-colors"
                 >
                   {isLogin ? "Sign Up" : "Log In"}
                 </button>
