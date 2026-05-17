@@ -761,6 +761,7 @@ export function RecordShelfView({
           </div>
         ) : (
           <div className="max-w-7xl mx-auto">
+            {/* eslint-disable-next-line react-hooks/refs */}
             {groups.map((group) => (
               <section
                 key={group.key}

@@ -19,6 +19,7 @@ export const translations = {
     search: {
       artistOrBand: "Artist or Band",
       albumName: "Album Name",
+      typeToSearch: "Press Enter or interact to search",
       tags: "Tags:",
       decade: "Decade:",
       region: "Region:",
@@ -138,6 +139,7 @@ export const translations = {
     search: {
       artistOrBand: "艺人or乐队",
       albumName: "专辑名称",
+      typeToSearch: "按 Enter 或交互以搜索",
       tags: "标签:",
       decade: "年代:",
       region: "地区:",

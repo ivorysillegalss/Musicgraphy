@@ -16,16 +16,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("pmgt_language") as Language;
-    if (saved === "en" || saved === "zh") {
-      setLanguage(saved);
-    } else {
-      // Auto-detect based on navigator
-      if (navigator.language.startsWith("zh")) {
-        setLanguage("zh");
+    const raf = requestAnimationFrame(() => {
+      if (saved === "en" || saved === "zh") {
+        setLanguage(saved);
       } else {
-        setLanguage("en");
+        // Auto-detect based on navigator
+        if (navigator.language.startsWith("zh")) {
+          setLanguage("zh");
+        } else {
+          setLanguage("en");
+        }
       }
-    }
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const handleSetLanguage = (lang: Language) => {

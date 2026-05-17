@@ -15,7 +15,12 @@ import { LibraryDrawer } from "@/components/ui/library-drawer";
 import { MbTokenModal } from "@/components/ui/mb-token-modal";
 import { NeteaseImportModal } from "@/components/ui/netease-import-modal";
 import { RecordShelfView } from "@/components/ui/record-shelf-view";
-import { WorldMap } from "@/components/world-map";
+import dynamic from "next/dynamic";
+
+const WorldMap = dynamic(
+  () => import("@/components/world-map").then((m) => m.WorldMap),
+  { ssr: false },
+);
 import type { DiscoveryAlbum } from "@/lib/discovery-catalog";
 import {
   getLocalSessionClient,

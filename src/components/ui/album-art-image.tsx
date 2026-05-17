@@ -5,8 +5,23 @@ import { getAlbumCoverUrl } from "@/lib/assets/covers";
 
 // ── Persistent store on window (survives HMR module re-evaluation) ──
 const SSR = typeof window === "undefined";
-const W: any = SSR ? null : window;
-function ensureStore() {
+
+type ACStore = {
+  CACHE: Map<string, string>;
+  CANDIDATE_CACHE: Map<string, string[]>;
+  PENDING: Map<string, Promise<string | null>>;
+  activeFetches: number;
+  fetchQueue: Array<() => void>;
+};
+
+declare global {
+  interface Window {
+    __AC?: ACStore;
+  }
+}
+
+const W = SSR ? null : window as Window;
+function ensureStore(): ACStore | null {
   if (!W || W.__AC) return W?.__AC ?? null;
   W.__AC = {
     CACHE: new Map<string, string>(),
@@ -186,11 +201,19 @@ export function AlbumArtImage({ artist, album, releaseId, className, width, heig
   const finalSrc = !hasError && src ? src : fallbackUrl;
 
   useEffect(() => {
-    setIsLoaded(false);
-    const image = imageRef.current;
-    if (image?.complete && image.naturalWidth > 0) {
-      setIsLoaded(true);
-    }
+    let mounted = true;
+    const raf = requestAnimationFrame(() => {
+      if (!mounted) return;
+      setIsLoaded(false);
+      const image = imageRef.current;
+      if (image?.complete && image.naturalWidth > 0) {
+        setIsLoaded(true);
+      }
+    });
+    return () => {
+      mounted = false;
+      cancelAnimationFrame(raf);
+    };
   }, [finalSrc]);
 
   return (

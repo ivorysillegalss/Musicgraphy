@@ -166,7 +166,7 @@ export async function GET(request: Request) {
         lng, lat, enabled, weight, created_at
        from discovery_pool`;
        
-    let args: any[] = [];
+    let args: Array<string | number | null> = [];
 
     if (q) {
       querySql += ` where lower(album_title) like ? 
@@ -208,7 +208,7 @@ export async function POST(request: Request) {
         release_year = excluded.release_year,
         country_code = excluded.country_code,
         country_name = excluded.country_name,
-        city_name = excluded.city_name,
+      let args: Array<string | number | null> = [];
         region_code = excluded.region_code,
         region_name = excluded.region_name,
         geo_granularity = excluded.geo_granularity,

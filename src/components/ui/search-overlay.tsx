@@ -347,7 +347,11 @@ export function SearchOverlay({
               </div>
             )}
 
-            {(artistQuery.trim() || albumQuery.trim()) && (
+            {(artistQuery.trim() || albumQuery.trim()) && !hasInteracted && (
+              <div className="p-4 text-sm text-[var(--text-dim)]">{t.search.typeToSearch || 'Press enter or interact to search'}</div>
+            )}
+
+            {(artistQuery.trim() || albumQuery.trim()) && hasInteracted && (
                 <div className="flex flex-col gap-1 rounded-lg border border-[var(--edge-soft)] bg-[var(--bg-espresso)]/95 p-2 shadow-xl shadow-black/40 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 {searchMeta.shouldOfferExternalSearch && !useExternalSearch && (
                   <div className="mb-1 rounded-lg border border-[var(--accent-amber)]/15 bg-[var(--accent-amber)]/[0.03] p-2.5">

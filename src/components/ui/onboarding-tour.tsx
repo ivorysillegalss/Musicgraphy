@@ -172,7 +172,8 @@ export function OnboardingTour({ isOpen, onClose }: OnboardingTourProps) {
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep(0);
+      const raf = requestAnimationFrame(() => setCurrentStep(0));
+      return () => cancelAnimationFrame(raf);
     }
   }, [isOpen]);
 
