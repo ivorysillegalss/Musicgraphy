@@ -36,32 +36,32 @@ export function AppNavbar({
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", damping: 28, stiffness: 280 }}
-      className="fixed top-0 left-0 right-0 z-50 px-6"
+      className="fixed top-4 left-0 right-0 z-50 flex justify-center w-full px-4 pointer-events-none"
     >
-      <div className="py-4 flex items-center justify-between">
+      <div className="w-full max-w-6xl px-6 py-3 flex items-center justify-between bg-[var(--bg-espresso)]/90 backdrop-blur-xl border border-[var(--edge-soft)] rounded-2xl shadow-2xl shadow-black/60 pointer-events-auto">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-[#c9a04a]/10 border border-[#c9a04a]/20 flex items-center justify-center">
-            <span className="text-[13px] font-bold text-[#c9a04a] tracking-tight">M</span>
+          <div className="h-8 w-8 rounded-full bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/20 flex items-center justify-center">
+            <span className="text-[13px] font-bold text-[var(--accent-green)] tracking-tight">M</span>
           </div>
           <div>
-            <h1 className="text-base font-serif font-bold text-[#ece8e1] tracking-tight leading-none">
+            <h1 className="text-base font-serif font-bold text-[var(--color-text)] tracking-tight leading-none">
               {t.navbar.title}
             </h1>
-            <p className="text-[10px] text-[#9a948c] font-medium tracking-[0.12em] uppercase mt-0.5">
+            <p className="text-[10px] text-[var(--text-dim)] font-medium tracking-[0.12em] uppercase mt-0.5">
               {t.navbar.subtitle}
             </p>
           </div>
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-[#141414]/60 border border-white/[0.06] rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-[var(--bg-secondary)]/60 border border-white/[0.06] rounded-lg p-0.5">
           <button
             onClick={() => onViewModeChange("map")}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all ${
               viewMode === "map"
-                ? "bg-[#c9a04a]/10 text-[#c9a04a] border border-[#c9a04a]/15 shadow-sm"
-                : "text-[#5a5854] hover:text-[#8a8680] border border-transparent"
+                ? "bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/15 shadow-sm"
+                : "text-[var(--text-dim)] hover:text-[var(--text-cream)] border border-transparent"
             }`}
           >
             <Map size={12} />
@@ -71,8 +71,8 @@ export function AppNavbar({
             onClick={() => onViewModeChange("shelf")}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all ${
               viewMode === "shelf"
-                ? "bg-[#c9a04a]/10 text-[#c9a04a] border border-[#c9a04a]/15 shadow-sm"
-                : "text-[#5a5854] hover:text-[#8a8680] border border-transparent"
+                ? "bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/15 shadow-sm"
+                : "text-[var(--text-dim)] hover:text-[var(--text-cream)] border border-transparent"
             }`}
           >
             <Disc size={12} />
@@ -84,7 +84,7 @@ export function AppNavbar({
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-[var(--text-dim)] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all"
             title={language === 'en' ? '切换到中文' : 'Switch to English'}
           >
             <Globe size={13} />
@@ -93,7 +93,7 @@ export function AppNavbar({
 
           <button
             onClick={onOpenGuide}
-            className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+            className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[var(--text-dim)] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all"
           >
             {t.navbar.guide}
           </button>
@@ -101,7 +101,7 @@ export function AppNavbar({
           {userEmail && onOpenMbTokens && (
             <button
               onClick={onOpenMbTokens}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#c9a04a]/70 hover:text-[#c9a04a] hover:bg-[#c9a04a]/[0.06] transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-[var(--accent-green)]/70 hover:text-[var(--accent-green)] hover:bg-[var(--accent-green)]/[0.06] transition-all"
             >
               <span>MB</span>
             </button>
@@ -110,7 +110,7 @@ export function AppNavbar({
           {userEmail && onOpenNeteaseImport && (
             <button
               onClick={onOpenNeteaseImport}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#c9a04a]/70 hover:text-[#c9a04a] hover:bg-[#c9a04a]/[0.06] transition-all"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[var(--accent-green)]/70 hover:text-[var(--accent-green)] hover:bg-[var(--accent-green)]/[0.06] transition-all"
             >
               NetEase
             </button>
@@ -119,7 +119,7 @@ export function AppNavbar({
           {userEmail && onOpenManage && (
             <button
               onClick={onOpenManage}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#ece8e1] hover:bg-white/[0.04] transition-all"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[var(--text-dim)] hover:text-[var(--color-text)] hover:bg-white/[0.04] transition-all"
             >
               {t.navbar.manageGeo}
             </button>
@@ -127,12 +127,12 @@ export function AppNavbar({
 
           {userEmail ? (
             <div className="flex items-center gap-2 pl-3 border-l border-white/[0.06]">
-              <span className="text-[11px] text-[#9a948c] hidden md:block max-w-[120px] truncate">
+              <span className="text-[11px] text-[var(--text-dim)] hidden md:block max-w-[120px] truncate">
                 {userEmail}
               </span>
               <button
                 onClick={onSignOut}
-                className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#9a948c] hover:text-[#8a4a5a] hover:bg-[#8a4a5a]/[0.06] transition-all"
+                className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[var(--text-dim)] hover:text-[#8a4a5a] hover:bg-[#8a4a5a]/[0.06] transition-all"
               >
                 {t.navbar.signOut}
               </button>
@@ -140,7 +140,7 @@ export function AppNavbar({
           ) : (
             <button
               onClick={onAuthClick}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg border border-white/[0.08] text-[11px] font-medium text-[#ece8e1] hover:bg-white/[0.04] hover:border-white/[0.12] transition-all"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg border border-white/[0.08] text-[11px] font-medium text-[var(--color-text)] hover:bg-white/[0.04] hover:border-white/[0.12] transition-all"
             >
               <User size={13} />
               <span>{isLocalMode ? t.navbar.localMode : t.navbar.signIn}</span>
@@ -148,7 +148,6 @@ export function AppNavbar({
           )}
         </div>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
     </motion.header>
   );
 }

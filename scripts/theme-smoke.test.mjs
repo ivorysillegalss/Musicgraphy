@@ -18,4 +18,8 @@ assert.match(globals, /--accent-ember:\s*#cc6b4a;/, "accent-ember missing");
 assert.match(globals, /--glow-amber:\s*rgba\(211, 155, 95, 0\.18\);/, "glow-amber missing");
 assert.match(globals, /--glow-ember:\s*rgba\(204, 107, 74, 0\.18\);/, "glow-ember missing");
 
+const navbar = fs.readFileSync("src/components/ui/app-navbar.tsx", "utf8");
+assert.match(navbar, /bg-\[var\(--bg-espresso\)\]/, "navbar espresso bg missing");
+assert.match(navbar, /border-\[var\(--edge-soft\)\]/, "navbar soft border missing");
+
 console.log("theme-smoke: OK");
