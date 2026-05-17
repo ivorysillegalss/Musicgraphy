@@ -33,4 +33,8 @@ assert.match(mapControls, /edge-soft/, "map controls edge-soft missing");
 const markers = fs.readFileSync("src/components/ui/map-marker/album-marker.tsx", "utf8");
 assert.match(markers, /accent-amber/, "album marker accent-amber missing");
 
+const onboarding = fs.readFileSync("src/components/ui/onboarding-tour.tsx", "utf8");
+assert.match(onboarding, /accent-amber/, "onboarding accent-amber missing");
+assert.match(onboarding, /edge-soft/, "onboarding edge-soft missing");
+
 console.log("theme-smoke: OK");
