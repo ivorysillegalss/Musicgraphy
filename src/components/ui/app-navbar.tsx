@@ -38,7 +38,7 @@ export function AppNavbar({
       transition={{ type: "spring", damping: 28, stiffness: 280 }}
       className="fixed top-0 left-0 right-0 z-50 px-6"
     >
-      <div className="w-full max-w-6xl px-6 py-3 flex items-center justify-between bg-[var(--bg-espresso)]/90 backdrop-blur-xl border border-[var(--edge-soft)] rounded-2xl shadow-2xl shadow-black/60 pointer-events-auto">
+      <div className="w-full max-w-6xl mx-auto px-6 py-3 relative flex items-center justify-between bg-[var(--bg-espresso)]/90 backdrop-blur-xl border border-[var(--edge-soft)] rounded-2xl shadow-2xl shadow-black/60 pointer-events-auto">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-[#c9a04a]/10 border border-[#c9a04a]/20 flex items-center justify-center">
@@ -55,7 +55,7 @@ export function AppNavbar({
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-[#141414]/60 border border-white/[0.06] rounded-lg p-0.5">
+        <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 bg-[#141414]/60 border border-white/[0.06] rounded-lg p-0.5">
           <button
             onClick={() => onViewModeChange("map")}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-all ${

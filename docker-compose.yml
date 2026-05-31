@@ -20,6 +20,7 @@ services:
       LASTFM_USERNAME: ${LASTFM_USERNAME:-}
       MUSICBRAINZ_TOKEN: ${MUSICBRAINZ_TOKEN:-}
       MUSICBRAINZ_TOKENS: ${MUSICBRAINZ_TOKENS:-}
+      NETEASE_API_BASE_URL: ${NETEASE_API_BASE_URL:-http://netease-api:3000}
     volumes:
       - ./data:/app/data
       - ./data/covers:/app/public/covers
@@ -34,13 +35,14 @@ services:
     restart: unless-stopped
 
   netease-api:
-    build: /home/chenz/api-enhanced
+    image: ${NETEASE_API_IMAGE:-moefurina/ncm-api:latest}
+    pull_policy: always
     ports:
       - "3001:3000"
     environment:
-      - HTTP_PROXY=http://host.docker.internal:7897
-      - HTTPS_PROXY=http://host.docker.internal:7897
-      - ALL_PROXY=http://host.docker.internal:7897
+      - HTTP_PROXY=${NETEASE_HTTP_PROXY:-}
+      - HTTPS_PROXY=${NETEASE_HTTPS_PROXY:-}
+      - ALL_PROXY=${NETEASE_ALL_PROXY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

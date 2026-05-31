@@ -82,13 +82,15 @@ npm run dev
 ### Docker（推荐）
 
 ```bash
-docker compose up --build
+docker compose pull && docker compose up -d
 ```
 
 说明：
 - 持久化数据位于宿主机 `./data`
 - 容器内数据库路径默认为 `/app/data/dream.db`
 - 专辑封面缓存目录挂载为 `./data/covers -> /app/public/covers`
+- `app` 与 `netease-api` 都默认走镜像拉取；如果你要换成自建镜像，可通过 `APP_IMAGE` 和 `NETEASE_API_IMAGE` 覆盖。
+- `netease-api` 默认不注入代理；只有在你确实需要代理时，才设置 `NETEASE_HTTP_PROXY`、`NETEASE_HTTPS_PROXY`、`NETEASE_ALL_PROXY`。
 
 #### 通过复制 `dream.db` 迁移
 
