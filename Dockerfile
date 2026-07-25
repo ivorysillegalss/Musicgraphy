@@ -1,9 +1,13 @@
-FROM node:20-alpine AS base
+ARG NODE_IMAGE=docker.m.daocloud.io/library/node:20-bookworm-slim
+FROM ${NODE_IMAGE} AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 FROM base AS deps
 COPY package.json package-lock.json ./
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends python3 make g++ \
+	&& rm -rf /var/lib/apt/lists/*
 RUN npm ci
 
 FROM base AS builder
@@ -18,7 +22,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build -- --webpack
 
-FROM node:20-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -28,7 +32,7 @@ ENV LOCAL_DB_PATH=/app/data/dream.db
 ENV LOCAL_DEFAULT_USER_ID=local-user
 ENV LOCAL_DEFAULT_USER_EMAIL=local@localhost
 
-RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
+RUN groupadd --system nextjs && useradd --system --gid nextjs nextjs
 
 COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./

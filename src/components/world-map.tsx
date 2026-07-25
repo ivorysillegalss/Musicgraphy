@@ -14,7 +14,10 @@ import { MemoizedGeographies } from "@/components/ui/memoized-geographies";
 import { MapControls } from "@/components/ui/map-controls";
 import { SearchOverlay } from "@/components/ui/search-overlay";
 import { sanitizeGeoLabel } from "@/lib/geo-label";
+import isMobileViewport from "@/lib/is-mobile";
+import { schedule } from "@/lib/raf-batcher";
 import { Search, X } from "lucide-react";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 type WorldMapProps = {
   userRecords: UserRecord[];
@@ -541,6 +544,7 @@ export function WorldMap({
   onToggleFavorite,
   onMarkHeard,
 }: WorldMapProps) {
+  const isMobile = isMobileViewport();
   const dragStateRef = useRef<{
     startX: number;
     startY: number;
@@ -663,9 +667,8 @@ export function WorldMap({
 
   useEffect(() => {
     return () => {
-      if (panRafRef.current !== null) {
-        cancelAnimationFrame(panRafRef.current);
-      }
+      // clear any pending pan RAF reference
+      panRafRef.current = null;
     };
   }, []);
 
@@ -1079,40 +1082,53 @@ export function WorldMap({
   
   const density = Math.max(1, Math.sqrt(totalMarkers || 1));
   const zoomScale = 0.9 + zoom * 0.3; // grow with zoom
+  const mobileMarkerScale = isMobile ? 0.72 : 1;
 
   const discoveryMarkerSize = useMemo(() => {
     const base = 44 * zoomScale;
     const size = base / (1 + (density - 1) * 0.28);
-    return clamp(size, 34, MAX_DISCOVERY_SIZE);
-  }, [zoomScale, density]);
+    return clamp(size * mobileMarkerScale, isMobile ? 22 : 34, isMobile ? 58 : MAX_DISCOVERY_SIZE);
+  }, [zoomScale, density, mobileMarkerScale, isMobile]);
 
   const userMarkerSize = useMemo(() => {
     const base = 34 * zoomScale;
     const size = base / (1 + (density - 1) * 0.25);
-    return clamp(size, 26, MAX_USER_SIZE);
-  }, [zoomScale, density]);
+    return clamp(size * mobileMarkerScale, isMobile ? 18 : 26, isMobile ? 44 : MAX_USER_SIZE);
+  }, [zoomScale, density, mobileMarkerScale, isMobile]);
 
   const collisionProfile = useMemo(() => {
     const base = getCollisionProfile(zoom, density, totalMarkers);
+
+    let iterations = clamp(
+      base.iterations + collisionTweaks.iterationsOffset,
+      COLLISION_TUNING.baseIterations - 10,
+      COLLISION_TUNING.maxIterations + 18
+    );
+    let clusterIterations = clamp(
+      base.clusterIterations + collisionTweaks.clusterIterationsOffset,
+      4,
+      COLLISION_TUNING.maxClusterIterations + 12
+    );
+    const gapPx = clamp(collisionTweaks.gapPx, 1, 8);
+    let maxDisplacementPx = clamp(
+      base.maxDisplacementPx + collisionTweaks.maxDisplacementOffset,
+      12,
+      52
+    );
+
+    if (isMobile) {
+      iterations = Math.max(8, Math.round(iterations * 0.6));
+      clusterIterations = Math.max(4, Math.round(clusterIterations * 0.6));
+      maxDisplacementPx = Math.min(maxDisplacementPx, 22);
+    }
+
     return {
-      iterations: clamp(
-        base.iterations + collisionTweaks.iterationsOffset,
-        COLLISION_TUNING.baseIterations - 10,
-        COLLISION_TUNING.maxIterations + 18
-      ),
-      clusterIterations: clamp(
-        base.clusterIterations + collisionTweaks.clusterIterationsOffset,
-        4,
-        COLLISION_TUNING.maxClusterIterations + 12
-      ),
-      gapPx: clamp(collisionTweaks.gapPx, 1, 8),
-      maxDisplacementPx: clamp(
-        base.maxDisplacementPx + collisionTweaks.maxDisplacementOffset,
-        12,
-        52
-      ),
+      iterations,
+      clusterIterations,
+      gapPx,
+      maxDisplacementPx,
     };
-  }, [zoom, density, totalMarkers, collisionTweaks]);
+  }, [zoom, density, totalMarkers, collisionTweaks, isMobile]);
 
   const activeCollisionPresetJson = useMemo(
     () => JSON.stringify(collisionTweaks, null, 2),
@@ -1160,6 +1176,9 @@ export function WorldMap({
 
   const jitteredGlobalMarkers = useMemo(() => {
     const VIEWPORT_BUFFER_PX = 80;
+    const mobileDiscoveryCap = 10;
+    const mobileFavoriteCap = 6;
+    const mobileUserCap = 8;
 
     const combined = [
       ...userMarkers
@@ -1197,7 +1216,7 @@ export function WorldMap({
           ) {
             return null;
           }
-          const selectedMultiplier = selectedDiscovery?.id === marker.id ? 1.4 : 1;
+          const selectedMultiplier = selectedDiscovery?.id === marker.id ? (isMobile ? 1.18 : 1.4) : 1;
           return {
             id: `discovery:${marker.id}`,
             sourceId: marker.id,
@@ -1221,7 +1240,7 @@ export function WorldMap({
           ) {
             return null;
           }
-          const selectedMultiplier = selectedDiscovery?.id === marker.favoriteId ? 1.4 : 1;
+          const selectedMultiplier = selectedDiscovery?.id === marker.favoriteId ? (isMobile ? 1.18 : 1.4) : 1;
           return {
             id: `favorite:${marker.favoriteId}`,
             sourceId: marker.favoriteId,
@@ -1234,6 +1253,25 @@ export function WorldMap({
         })
         .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
     ];
+
+    if (isMobile) {
+      const prioritizedUsers = combined.filter((marker) => marker.layer === "user").slice(0, mobileUserCap);
+      const prioritizedDiscoveries = combined
+        .filter((marker) => marker.layer === "discovery")
+        .slice(0, mobileDiscoveryCap);
+      const prioritizedFavorites = combined
+        .filter((marker) => marker.layer === "favorite")
+        .slice(0, mobileFavoriteCap);
+
+      return resolveMarkerCollisions([...prioritizedUsers, ...prioritizedDiscoveries, ...prioritizedFavorites], {
+        width: SVG_WIDTH,
+        height: SVG_HEIGHT,
+        iterations: collisionProfile.iterations,
+        clusterIterations: collisionProfile.clusterIterations,
+        gapPx: collisionProfile.gapPx,
+        maxDisplacementPx: collisionProfile.maxDisplacementPx,
+      });
+    }
 
     return resolveMarkerCollisions(combined, {
       width: SVG_WIDTH,
@@ -1381,16 +1419,12 @@ export function WorldMap({
     if (!dragStateRef.current) {
       return;
     }
-
     pendingPanRef.current = {
       dx: event.clientX - dragStateRef.current.startX,
       dy: event.clientY - dragStateRef.current.startY,
     };
 
-    if (panRafRef.current !== null) return;
-
-    panRafRef.current = requestAnimationFrame(() => {
-      panRafRef.current = null;
+    schedule(() => {
       if (!dragStateRef.current || !pendingPanRef.current) return;
 
       const { dx, dy } = pendingPanRef.current;
@@ -1408,10 +1442,47 @@ export function WorldMap({
 
   function handleMouseUp() {
     dragStateRef.current = null;
-    if (panRafRef.current !== null) {
-      cancelAnimationFrame(panRafRef.current);
-      panRafRef.current = null;
-    }
+    panRafRef.current = null;
+    pendingPanRef.current = null;
+  }
+
+  function handleTouchStart(e: React.TouchEvent<SVGSVGElement>) {
+    const t = e.touches[0];
+    if (!t) return;
+    dragStateRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      center: viewCenter,
+    };
+  }
+
+  function handleTouchMove(e: React.TouchEvent<SVGSVGElement>) {
+    if (!dragStateRef.current) return;
+    const t = e.touches[0];
+    if (!t) return;
+
+    pendingPanRef.current = {
+      dx: t.clientX - dragStateRef.current.startX,
+      dy: t.clientY - dragStateRef.current.startY,
+    };
+
+    schedule(() => {
+      if (!dragStateRef.current || !pendingPanRef.current) return;
+      const { dx, dy } = pendingPanRef.current!;
+      const nextLng = dragStateRef.current.center[0] - dx * (0.16 / zoom);
+      const nextLat = dragStateRef.current.center[1] + dy * (0.12 / zoom);
+
+      setViewCenter([
+        ((nextLng + 540) % 360) - 180,
+        Math.max(-75, Math.min(75, nextLat)),
+      ]);
+
+      pendingPanRef.current = null;
+    });
+  }
+
+  function handleTouchEnd() {
+    dragStateRef.current = null;
     pendingPanRef.current = null;
   }
 
@@ -1450,6 +1521,7 @@ export function WorldMap({
 
   return (
     <div className="relative w-full h-full">
+      {!isMobile ? (
       <div className="absolute left-6 top-24 z-10 flex flex-col gap-2 pointer-events-none">
         {isAuthenticated ? (
           <div className="pointer-events-auto self-start flex gap-1 rounded-full border border-white/[0.06] bg-black/50 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl transition-all duration-300">
@@ -1531,20 +1603,23 @@ export function WorldMap({
           </div>
         ) : null}
       </div>
+      ) : null}
 
-      <MapControls
-        zoom={zoom}
-        onZoomChange={setZoom}
-        onSearchClick={() => setIsSearchOpen(true)}
-        showSearch={!!userId}
-        onRefresh={() => {
-          setRefreshSalt(makeSeedSalt());
-          setRefreshNonce((value) => value + 1);
-        }}
-        className="absolute right-6 top-1/2 -translate-y-1/2 z-20"
-      />
+      {!isMobile ? (
+        <MapControls
+          zoom={zoom}
+          onZoomChange={setZoom}
+          onSearchClick={() => setIsSearchOpen(true)}
+          showSearch={!!userId}
+          onRefresh={() => {
+            setRefreshSalt(makeSeedSalt());
+            setRefreshNonce((value) => value + 1);
+          }}
+          className="absolute right-6 top-1/2 -translate-y-1/2 z-20"
+        />
+      ) : null}
 
-      {!isSearchOpen ? (
+      {!isMobile && !isSearchOpen ? (
         <button
           type="button"
           onClick={() => setIsSearchOpen(true)}
@@ -1558,7 +1633,7 @@ export function WorldMap({
         </button>
       ) : null}
 
-      {process.env.NODE_ENV !== "production" ? (
+      {!isMobile && process.env.NODE_ENV !== "production" ? (
         <div className="absolute right-6 top-24 z-30 pointer-events-auto">
           {!isCollisionPanelOpen ? (
             <button
@@ -1763,6 +1838,9 @@ export function WorldMap({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <rect x={0} y={0} width={SVG_WIDTH} height={SVG_HEIGHT} fill="var(--color-background)" />
           <MemoizedGeographies geographies={worldGeographies} pathBuilder={pathBuilder} />
@@ -1827,8 +1905,54 @@ export function WorldMap({
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {selectedDiscovery ? (
+      {selectedDiscovery ? (
+        isMobileViewport() ? (
+          <BottomSheet open={true} onClose={() => setSelectedDiscovery(null)}>
+            <div className="p-1">
+              <div className="flex gap-3 items-center">
+                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-black/40 relative border border-white/[0.04]">
+                  <AlbumArtImage
+                    artist={selectedDiscovery.artistName}
+                    album={selectedDiscovery.albumTitle}
+                    className="absolute inset-0 w-full h-full"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-serif font-semibold truncate text-[var(--color-text)] text-base">{selectedDiscovery.albumTitle}</p>
+                  <p className="text-[#5a5854] truncate text-sm mt-0.5">{selectedDiscovery.artistName}</p>
+                  <p className="text-[#5a5854] text-[11px] mt-1 tabular-nums font-mono">
+                    {selectedDiscovery.releaseYear} · {selectedDiscovery.countryCode}/{selectedDiscovery.cityName}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onMarkHeardRef.current(selectedDiscovery);
+                  }}
+                  disabled={!isAuthenticatedRef.current}
+                  className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isSelectedDiscoveryHeard
+                      ? "bg-[#8a4a5a]/20 text-[#8a4a5a]/80"
+                      : "bg-[#4a8a6a]/20 text-[#4a8a6a]/80 border border-[#4a8a6a]/10"
+                  }`}
+                >
+                  {!isAuthenticatedRef.current ? "Login to mark" : isSelectedDiscoveryHeard ? "Heard (Undo)" : "Mark Heard"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleFavoriteRef.current(selectedDiscovery)}
+                  className="flex-1 rounded-md bg-white/[0.04] px-3 py-2 text-sm font-medium text-[#5a5854] border border-white/[0.04]"
+                >
+                  {favoritesRef.current.some(
+                    (f) => f.id === selectedDiscovery.id || (f.albumTitle === selectedDiscovery.albumTitle && f.artistName === selectedDiscovery.artistName)
+                  ) ? "Unfavorite" : "Favorite"}
+                </button>
+              </div>
+            </div>
+          </BottomSheet>
+        ) : (
           <motion.div
             key={`discovery-popup-${selectedDiscovery.id}`}
             initial={{ opacity: 0, y: 12 }}
@@ -1861,74 +1985,89 @@ export function WorldMap({
                 </p>
               </div>
             </div>
-
             <div className="mt-3 flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                 void onMarkHeardRef.current(selectedDiscovery);
-              }}
-              disabled={!isAuthenticatedRef.current}
-              className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                isSelectedDiscoveryHeard
-                  ? "bg-[#8a4a5a]/20 text-[#8a4a5a]/80 hover:bg-[#8a4a5a]/30"
-                  : "bg-[#4a8a6a]/20 text-[#4a8a6a]/80 hover:bg-[#4a8a6a]/30 border border-[#4a8a6a]/10"
-              }`}
-            >
-              {!isAuthenticatedRef.current ? "Login to mark" : isSelectedDiscoveryHeard ? "Heard (Undo)" : "Mark Heard"}
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleFavoriteRef.current(selectedDiscovery)}
-              className="flex-1 rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-[#5a5854] transition-all hover:bg-white/[0.06] hover:text-[var(--color-text)] border border-white/[0.04]"
-            >
-              {favoritesRef.current.some(f =>
-                  f.id === selectedDiscovery.id ||
-                  (f.albumTitle === selectedDiscovery.albumTitle && f.artistName === selectedDiscovery.artistName)
+              <button
+                type="button"
+                onClick={() => {
+                  void onMarkHeardRef.current(selectedDiscovery);
+                }}
+                disabled={!isAuthenticatedRef.current}
+                className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isSelectedDiscoveryHeard
+                    ? "bg-[#8a4a5a]/20 text-[#8a4a5a]/80 hover:bg-[#8a4a5a]/30"
+                    : "bg-[#4a8a6a]/20 text-[#4a8a6a]/80 hover:bg-[#4a8a6a]/30 border border-[#4a8a6a]/10"
+                }`}
+              >
+                {!isAuthenticatedRef.current ? "Login to mark" : isSelectedDiscoveryHeard ? "Heard (Undo)" : "Mark Heard"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleFavoriteRef.current(selectedDiscovery)}
+                className="flex-1 rounded-md bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-[#5a5854] transition-all hover:bg-white/[0.06] hover:text-[var(--color-text)] border border-white/[0.04]"
+              >
+                {favoritesRef.current.some(
+                  (f) => f.id === selectedDiscovery.id || (f.albumTitle === selectedDiscovery.albumTitle && f.artistName === selectedDiscovery.artistName)
                 ) ? "Unfavorite" : "Favorite"}
-            </button>
-          </div>
+              </button>
+            </div>
           </motion.div>
+        )
       ) : null}
-      </AnimatePresence>
 
-      <AnimatePresence mode="wait">
       {selectedUserRecord ? (
-        <motion.div
+        isMobileViewport() ? (
+          <BottomSheet open={true} onClose={() => setSelectedUserRecordId(null)}>
+            <div className="p-2">
+              <div className="flex items-center gap-3">
+                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-full relative">
+                  <AlbumArtImage
+                    artist={selectedUserRecord.artistGeo.artistName}
+                    album={selectedUserRecord.albumTitle}
+                    className="absolute inset-0 w-full h-full"
+                  />
+                </div>
+                <div>
+                  <p className="font-serif font-semibold text-base text-[#4a8a6a]/90">{selectedUserRecord.albumTitle}</p>
+                  <p className="text-[#5a5854] text-sm mt-0.5">{selectedUserRecord.artistGeo.artistName}</p>
+                  <p className="text-[#5a5854] text-[11px] mt-0.5 tabular-nums font-mono">{getRecordYear(selectedUserRecord)}</p>
+                </div>
+              </div>
+            </div>
+          </BottomSheet>
+        ) : (
+          <motion.div
             key={`user-record-popup-${selectedUserRecord.id}`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.2 }}
             className="fixed bottom-4 left-3 right-3 z-[60] w-auto rounded-lg border border-white/[0.06] bg-[var(--bg-secondary)] p-4 shadow-xl shadow-black/40 sm:bottom-auto sm:left-6 sm:right-auto sm:top-40 sm:w-[300px]"
-        >
-          <button
-            type="button"
-            aria-label="Close popup"
-            onClick={() => setSelectedUserRecordId(null)}
-            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[var(--bg-elevated)] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[var(--color-text)]"
           >
-            <X className="h-2.5 w-2.5" strokeWidth={2} />
-          </button>
-          <div className="flex gap-3 items-center">
-            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[#4a8a6a]/50 ring-offset-1 ring-offset-[var(--color-background)] relative">
-              <AlbumArtImage
-                artist={selectedUserRecord.artistGeo.artistName}
-                album={selectedUserRecord.albumTitle}
-                className="absolute inset-0 w-full h-full"
-              />
+            <button
+              type="button"
+              aria-label="Close popup"
+              onClick={() => setSelectedUserRecordId(null)}
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.06] bg-[var(--bg-elevated)] text-[#5a5854] transition-all hover:bg-[#242424] hover:text-[var(--color-text)]"
+            >
+              <X className="h-2.5 w-2.5" strokeWidth={2} />
+            </button>
+            <div className="flex gap-3 items-center">
+              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2 ring-[#4a8a6a]/50 ring-offset-1 ring-offset-[var(--color-background)] relative">
+                <AlbumArtImage
+                  artist={selectedUserRecord.artistGeo.artistName}
+                  album={selectedUserRecord.albumTitle}
+                  className="absolute inset-0 w-full h-full"
+                />
+              </div>
+              <div>
+                <p className="font-serif font-semibold text-sm text-[#4a8a6a]/90">{selectedUserRecord.albumTitle}</p>
+                <p className="text-[#5a5854] text-xs mt-0.5">{selectedUserRecord.artistGeo.artistName}</p>
+                <p className="text-[#5a5854] text-[10px] mt-0.5 tabular-nums font-mono">{getRecordYear(selectedUserRecord)}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-serif font-semibold text-sm text-[#4a8a6a]/90">{selectedUserRecord.albumTitle}</p>
-              <p className="text-[#5a5854] text-xs mt-0.5">{selectedUserRecord.artistGeo.artistName}</p>
-              <p className="text-[#5a5854] text-[10px] mt-0.5 tabular-nums font-mono">
-                  {getRecordYear(selectedUserRecord)}
-              </p>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )
       ) : null}
-      </AnimatePresence>
     </div>
   );
 }

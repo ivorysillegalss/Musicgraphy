@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as Slider from '@radix-ui/react-slider';
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import isMobileViewport from "@/lib/is-mobile";
+import { BottomSheet } from "./bottom-sheet";
 
 type BottomControlsProps = {
   timelineRange: { min: number; max: number };
@@ -24,6 +26,45 @@ export function BottomControls({
 }: BottomControlsProps) {
   const { t } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
+  const mobile = isMobileViewport();
+
+  if (mobile) {
+    return (
+      <div className="fixed bottom-4 left-4 right-4 z-50 md:hidden">
+        <button
+          onClick={() => setIsExpanded(true)}
+          className="w-full bg-[var(--bg-secondary)]/90 border border-white/[0.06] rounded-2xl py-3 text-sm font-medium"
+        >
+          {timelineRange.min} — {timelineRange.max} · {recordsCount} records
+        </button>
+        <BottomSheet open={isExpanded} onClose={() => setIsExpanded(false)}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">{timelineRange.min} — {timelineRange.max}</h2>
+              <button onClick={() => setIsExpanded(false)} className="text-sm">Close</button>
+            </div>
+            <div>
+              <Slider.Root
+                className="relative flex items-center select-none touch-none w-full h-6"
+                value={[timelineRange.min, timelineRange.max]}
+                min={minYear}
+                max={maxYear}
+                step={1}
+                minStepsBetweenThumbs={1}
+                onValueChange={([min, max]) => setTimelineRange({ min, max })}
+              >
+                <Slider.Track className="bg-white/[0.06] relative grow rounded-full h-3">
+                  <Slider.Range className="absolute bg-[var(--accent-green)]/60 rounded-full h-full" />
+                </Slider.Track>
+                <Slider.Thumb className="block w-6 h-6 bg-[var(--color-text)] rounded-full shadow" aria-label="Minimum Year" />
+                <Slider.Thumb className="block w-6 h-6 bg-[var(--color-text)] rounded-full shadow" aria-label="Maximum Year" />
+              </Slider.Root>
+            </div>
+          </div>
+        </BottomSheet>
+      </div>
+    );
+  }
 
   return (
     <motion.div

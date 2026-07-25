@@ -804,6 +804,7 @@ export default function Home() {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenLibrary={() => setIsLibraryOpen(true)}
         onOpenMbTokens={openMbTokenModal}
         onOpenNeteaseImport={() => setIsNeteaseImportOpen(true)}
         onOpenManage={() => {
@@ -824,7 +825,7 @@ export default function Home() {
 
       <button
         onClick={() => setIsLibraryOpen(true)}
-        className="fixed bottom-32 right-6 z-40 flex items-center justify-center h-10 w-10 rounded-full border border-white/[0.06] bg-[var(--bg-secondary)]/80 text-[#9a948c] shadow-lg shadow-black/30 hover:bg-[var(--bg-elevated)] hover:text-[var(--color-text)] hover:border-white/[0.1] transition-all group"
+        className="fixed bottom-32 right-6 z-40 hidden md:flex items-center justify-center h-10 w-10 rounded-full border border-white/[0.06] bg-[var(--bg-secondary)]/80 text-[#9a948c] shadow-lg shadow-black/30 hover:bg-[var(--bg-elevated)] hover:text-[var(--color-text)] hover:border-white/[0.1] transition-all group"
         title="Open Library"
       >
         <Library size="15" className="group-hover:text-[var(--accent-green)]/70 transition-colors" />
